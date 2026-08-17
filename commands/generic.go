@@ -172,24 +172,36 @@ func (o *globalOptions) renderRawList(cmd *cobra.Command, items []json.RawMessag
 	return o.renderList(cmd, rows, columns, idField)
 }
 
-// listFlags wires the standard pagination flags onto a list command and returns the params
-// getter, so every list verb paginates identically.
-func listFlags(cmd *cobra.Command) func() api.ListParams {
-	var (
-		all    bool
-		limit  int
-		after  string
-		before string
-		fields string
-	)
-	cmd.Flags().BoolVar(&all, "all", false, "fetch every page")
-	cmd.Flags().IntVar(&limit, "limit", 0, "items per page")
-	cmd.Flags().StringVar(&after, "after", "", "continue from a pagination cursor")
-	cmd.Flags().StringVar(&before, "before", "", "page backwards from a cursor")
-	cmd.Flags().StringVar(&fields, "fields", "", "comma-separated field projection")
-	return func() api.ListParams {
-		return api.ListParams{All: all, Limit: limit, After: after, Before: before, Fields: fields}
+// addListFlags wires the standard pagination flags onto a list command; listParamsFrom
+// reads them back at run time. Split into two stateless halves because an opSpec's Flags
+// and Run are separate closures with no shared frame.
+func addListFlags(cmd *cobra.Command) {
+	cmd.Flags().Bool("all", false, "fetch every page")
+	cmd.Flags().Int("limit", 0, "items per page")
+	cmd.Flags().String("after", "", "continue from a pagination cursor")
+	cmd.Flags().String("before", "", "page backwards from a cursor")
+	cmd.Flags().String("fields", "", "comma-separated field projection")
+}
+
+func listParamsFrom(cmd *cobra.Command) api.ListParams {
+	all, _ := cmd.Flags().GetBool("all")
+	limit, _ := cmd.Flags().GetInt("limit")
+	after, _ := cmd.Flags().GetString("after")
+	before, _ := cmd.Flags().GetString("before")
+	fields, _ := cmd.Flags().GetString("fields")
+	return api.ListParams{All: all, Limit: limit, After: after, Before: before, Fields: fields}
+}
+
+// rawList converts raw JSON items into renderable values.
+func rawList(items []json.RawMessage) []any {
+	rows := make([]any, 0, len(items))
+	for _, raw := range items {
+		var v any
+		if err := json.Unmarshal(raw, &v); err == nil {
+			rows = append(rows, v)
+		}
 	}
+	return rows
 }
 
 // readJSONBody resolves a --data value: inline JSON, @file, or @- for stdin.
