@@ -1,0 +1,48 @@
+site_name: waba
+site_description: WhatsApp Cloud API from the command line
+site_url: https://jjuanrivvera.github.io/waba-cli/
+repo_url: https://github.com/jjuanrivvera/waba-cli
+repo_name: jjuanrivvera/waba-cli
+edit_uri: ""
+
+theme:
+  name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle: {icon: material/brightness-7, name: Switch to dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      toggle: {icon: material/brightness-4, name: Switch to light mode}
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc: {permalink: true}
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight: {anchor_linenums: true}
+
+nav:
+  - Home: index.md
+  - AI agents: agents.md
+  - Command reference: commands/waba.md
+
+plugins:
+  - search
+
+extra:
+  analytics:
+    provider: google
+    property: !ENV GOOGLE_ANALYTICS_KEY

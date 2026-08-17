@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "waba",
+  "owner": { "name": "Juan Rivera", "url": "https://github.com/jjuanrivvera" },
+  "plugins": [
+    {
+      "name": "waba-cli",
+      "source": "./",
+      "version": "0.1.0",
+      "description": "WhatsApp Cloud API from the command line: messaging, media, templates, flows, calling, groups and analytics",
+      "homepage": "https://github.com/jjuanrivvera/waba-cli",
+      "keywords": ["whatsapp", "whatsapp-business", "cloud-api", "meta", "cli", "ai-agent"]
+    }
+  ]
+}

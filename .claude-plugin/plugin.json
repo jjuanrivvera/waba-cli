@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "waba-cli",
+  "version": "0.1.0",
+  "description": "WhatsApp Cloud API from the command line: messaging, media, templates, flows, calling, groups and analytics",
+  "author": { "name": "Juan Rivera", "url": "https://github.com/jjuanrivvera" },
+  "homepage": "https://github.com/jjuanrivvera/waba-cli",
+  "repository": "https://github.com/jjuanrivvera/waba-cli",
+  "license": "MIT",
+  "skills": "./skills",
+  "keywords": ["whatsapp", "whatsapp-business", "cloud-api", "meta", "cli", "ai-agent"]
+}

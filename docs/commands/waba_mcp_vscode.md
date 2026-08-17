@@ -1,0 +1,41 @@
+## waba mcp vscode
+
+Manage VSCode MCP servers
+
+### Synopsis
+
+Manage MCP server configuration for Visual Studio Code
+
+### Options
+
+```
+  -h, --help   help for vscode
+```
+
+### Options inherited from parent commands
+
+```
+      --account string    named account to use
+      --app-id string     Meta app id (overrides the account default)
+      --base-url string   override the Graph API base URL
+      --columns strings   columns to show in table/csv output
+      --dry-run           print the equivalent curl command and send nothing
+      --jq string         filter the result through a gojq expression
+      --no-color          disable colored output
+  -o, --output string     output format: table|json|yaml|csv|id (default "table")
+      --phone-id string   business phone number id (overrides the account default)
+      --quiet             suppress notes and warnings
+      --rps float         client-side request rate limit (requests/second) (default 10)
+      --show-token        do not redact credentials in --dry-run output
+      --timeout int       per-request timeout in seconds (default 60)
+  -v, --verbose           trace requests to stderr
+      --waba-id string    WhatsApp Business Account id (overrides the account default)
+```
+
+### SEE ALSO
+
+* [waba mcp](waba_mcp)	 - MCP server management
+* [waba mcp vscode disable](waba_mcp_vscode_disable)	 - Remove server from VSCode config
+* [waba mcp vscode enable](waba_mcp_vscode_enable)	 - Add server to VSCode config
+* [waba mcp vscode list](waba_mcp_vscode_list)	 - Show VSCode MCP servers
+
