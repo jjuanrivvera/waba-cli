@@ -7,7 +7,6 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -20,8 +19,8 @@ type RetryPolicy struct {
 	MaxDelay    time.Duration // ceiling for a single wait
 }
 
-// DefaultRetryPolicy is tuned for Atlassian: its 429s carry Retry-After (which is honoured
-// verbatim and can legitimately be tens of seconds), and its 5xx are usually brief.
+// DefaultRetryPolicy is tuned for the Graph API: rate-limit blocks are long-lived (Meta
+// throttles in windows, and any Retry-After is honoured verbatim), while its 5xx are brief.
 func DefaultRetryPolicy() RetryPolicy {
 	return RetryPolicy{MaxAttempts: 4, BaseDelay: 500 * time.Millisecond, MaxDelay: 30 * time.Second}
 }
@@ -106,7 +105,7 @@ func backoff(p RetryPolicy, attempt int) time.Duration {
 	return time.Duration(rand.Int64N(int64(exp) + 1))
 }
 
-// retryAfter reads the Retry-After header, which Atlassian sets on 429 and some 503s.
+// retryAfter reads the Retry-After header when the server provides one on 429/503.
 // Both documented forms are supported: delta-seconds and an HTTP-date. The header always
 // wins over computed backoff — it is the server telling us exactly when it will accept work.
 func retryAfter(resp *http.Response, now time.Time) (time.Duration, bool) {
@@ -148,9 +147,4 @@ func waitFor(ctx context.Context, d time.Duration) error {
 	case <-t.C:
 		return nil
 	}
-}
-
-// sortDetails keeps map-derived error detail lists in a stable order across runs.
-func sortDetails(d []string) {
-	sort.Strings(d)
 }

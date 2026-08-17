@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The flexible types absorb Atlassian's inconsistent scalar encodings. These tests pin the
-// exact variations seen in real payloads, and the fuzz targets check that no input can panic
-// the decoders — a decoder crash would take down the whole command.
+// The flexible types absorb the Graph API's inconsistent scalar encodings. These tests pin
+// the exact variations seen in real payloads, and the fuzz targets check that no input can
+// panic the decoders — a decoder crash would take down the whole command.
 
 func TestID_AcceptsStringAndNumber(t *testing.T) {
 	cases := []struct {
@@ -132,8 +132,8 @@ func TestRef_AcceptsObjectAndString(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`"Done"`), &r))
 	assert.Equal(t, "Done", r.Label())
 
-	require.NoError(t, json.Unmarshal([]byte(`{"accountId":"5b1","displayName":"Juan"}`), &r))
-	assert.Equal(t, "Juan", r.Label(), "displayName should win over accountId")
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"5b1","name":"My App","link":"https://x"}`), &r))
+	assert.Equal(t, "My App", r.Label(), "name should win over id and link")
 
 	require.NoError(t, json.Unmarshal([]byte(`{"id":"9"}`), &r))
 	assert.Equal(t, "9", r.Label(), "an id is better than nothing")
@@ -216,12 +216,12 @@ func FuzzRefs(f *testing.F) {
 	})
 }
 
-func FuzzDecodePage(f *testing.F) {
+func FuzzPage(f *testing.F) {
 	seeds := []string{
-		`{"values":[{"id":"1"}],"isLast":true}`,
-		`{"issues":[],"nextPageToken":"x"}`,
+		`{"data":[{"id":"1"}],"paging":{"cursors":{"before":"a","after":"b"},"next":"https://x"}}`,
+		`{"data":[],"paging":{}}`,
+		`{"data":null}`,
 		`[{"id":"1"}]`,
-		`{"results":[],"_links":{"next":"/x?cursor=y"}}`,
 		`{`,
 		`null`,
 	}
@@ -229,8 +229,9 @@ func FuzzDecodePage(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, in string) {
-		for _, style := range []PageStyle{PageOffset, PageToken, PageCursor, PageStartLimit} {
-			_, _ = decodePage([]byte(in), style, "", 25)
+		var p Page
+		if err := json.Unmarshal([]byte(in), &p); err == nil {
+			_ = p.Paging.HasNext()
 		}
 	})
 }

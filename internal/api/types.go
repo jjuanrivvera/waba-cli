@@ -9,19 +9,18 @@ import (
 	"strings"
 )
 
-// Flexible JSON types. Atlassian is inconsistent about scalar encodings across its five API
-// families and across versions of the same endpoint — ids arrive as both `"10001"` and
-// `10001`, counts as both numbers and numeric strings, and single-valued fields as both a
-// bare object and a one-element array. Decoding into plain Go types therefore fails on real
-// payloads; these types absorb the variation at the edge so the rest of the CLI can assume
-// one shape.
+// Flexible JSON types. The Graph API is inconsistent about scalar encodings across edges
+// and versions — ids arrive as both `"102290129340398"` and a bare number, analytics counts
+// as numbers or numeric strings, and single-valued fields as both a bare object and a
+// one-element array. Decoding into plain Go types therefore fails on real payloads; these
+// types absorb the variation at the edge so the rest of the CLI can assume one shape.
 
-// ID is an Atlassian identifier. It decodes from a JSON string or number and always encodes
+// ID is a Graph API identifier. It decodes from a JSON string or number and always encodes
 // as a string.
 //
-// Encoding as a string is deliberate: Jira issue and Confluence content ids exceed 2^53 on
-// large instances, so round-tripping through float64 — which is what `any` decoding does —
-// silently corrupts them.
+// Encoding as a string is deliberate: WABA, app and phone-number ids are 15-17 digit
+// integers that can exceed 2^53, so round-tripping through float64 — which is what `any`
+// decoding does — silently corrupts them.
 type ID string
 
 func (i *ID) UnmarshalJSON(b []byte) error {
@@ -97,8 +96,8 @@ func (n Int) MarshalJSON() ([]byte, error) { return json.Marshal(int64(n)) }
 func (n Int) Int64() int64                 { return int64(n) }
 func (n Int) String() string               { return strconv.FormatInt(int64(n), 10) }
 
-// Bool accepts a real JSON bool or the string forms Atlassian sometimes emits in query-echo
-// and property payloads ("true", "1", "yes", "on").
+// Bool accepts a real JSON bool or the string forms the Graph API sometimes emits in
+// settings and query-echo payloads ("true", "1", "yes", "on").
 type Bool bool
 
 func (b *Bool) UnmarshalJSON(raw []byte) error {
@@ -133,9 +132,9 @@ func (b *Bool) UnmarshalJSON(raw []byte) error {
 func (b Bool) MarshalJSON() ([]byte, error) { return json.Marshal(bool(b)) }
 func (b Bool) Bool() bool                   { return bool(b) }
 
-// Number is an exact decimal held as text — used for time-tracking and story-point style
-// fields. Keeping the original digits avoids the rounding a float64 would introduce on
-// values like 0.1, which matters when the value is written back to the API.
+// Number is an exact decimal held as text — used for analytics cost figures. Keeping the
+// original digits avoids the rounding a float64 would introduce on values like 0.1, which
+// matters when a cost is re-emitted or compared.
 type Number string
 
 func (m *Number) UnmarshalJSON(b []byte) error {
@@ -185,43 +184,33 @@ func (m Number) Float() (float64, error) {
 	return strconv.ParseFloat(string(m), 64)
 }
 
-// Ref is a nested `{id, name, key, ...}` reference — Jira returns these for project, status,
-// priority, issue type, assignee and many more. Rendering a whole object into a table cell
-// is useless, so Ref carries the pieces a table actually wants.
+// Ref is a nested `{id, name, link}` reference — the Graph API returns these for subscribed
+// apps, on-behalf-of business info and similar nodes. Rendering a whole object into a table
+// cell is useless, so Ref carries the pieces a table actually wants.
 type Ref struct {
-	ID          ID     `json:"id,omitempty"`
-	Key         string `json:"key,omitempty"`
-	Name        string `json:"name,omitempty"`
-	DisplayName string `json:"displayName,omitempty"`
-	AccountID   string `json:"accountId,omitempty"`
-	Email       string `json:"emailAddress,omitempty"`
-	Self        string `json:"self,omitempty"`
+	ID   ID     `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+	Link string `json:"link,omitempty"`
 }
 
-// Label picks the most human-readable identifier present, so a table cell shows
-// "In Progress" rather than an opaque id.
+// Label picks the most human-readable identifier present, so a table cell shows the app
+// name rather than an opaque id.
 func (r Ref) Label() string {
 	switch {
-	case r.DisplayName != "":
-		return r.DisplayName
 	case r.Name != "":
 		return r.Name
-	case r.Key != "":
-		return r.Key
-	case r.Email != "":
-		return r.Email
 	case !r.ID.Empty():
 		return r.ID.String()
-	case r.AccountID != "":
-		return r.AccountID
+	case r.Link != "":
+		return r.Link
 	}
 	return ""
 }
 
 func (r Ref) String() string { return r.Label() }
 
-// UnmarshalJSON also accepts a bare string, because several Atlassian endpoints degrade a
-// reference to just its name or key depending on the `expand` parameter.
+// UnmarshalJSON also accepts a bare string, because several Graph edges degrade a
+// reference to just its name depending on the `fields` projection.
 func (r *Ref) UnmarshalJSON(b []byte) error {
 	b = bytes.TrimSpace(b)
 	if len(b) == 0 || string(b) == "null" {
@@ -283,8 +272,8 @@ func (r Refs) Labels() []string {
 
 func (r Refs) String() string { return strings.Join(r.Labels(), ", ") }
 
-// StringOrSlice accepts `"x"` or `["x","y"]`. Atlassian uses both for labels, fields and
-// expand echoes.
+// StringOrSlice accepts `"x"` or `["x","y"]`. The Graph API uses both for websites,
+// rejection reasons and field echoes.
 type StringOrSlice []string
 
 func (s *StringOrSlice) UnmarshalJSON(b []byte) error {

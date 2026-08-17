@@ -11,9 +11,10 @@ import (
 
 // limiter paces outbound requests.
 //
-// Atlassian's limits are cost-based and vary by endpoint, plan and instance size, so there is
+// Meta's limits are percentage-budget-based and vary by app, WABA and endpoint, so there is
 // no single safe constant. It therefore runs in two modes at once: a fixed token interval as
-// the floor, and — when the response carries quota headers — an adaptive slowdown as the
+// the floor, and — when a response carries quota signals (X-RateLimit-* from mocks/proxies,
+// X-Business-Use-Case-Usage percentages from the Graph API) — an adaptive slowdown as the
 // budget depletes. A 429 halves the rate immediately and it recovers gradually, so a burst
 // that trips the limit does not simply trip it again.
 type limiter struct {
@@ -94,7 +95,9 @@ func (l *limiter) observe(resp *http.Response, now time.Time) {
 		l.haveQuota = true
 	}
 
-	if resp.StatusCode == http.StatusTooManyRequests {
+	// A disabled limiter (rps <= 0) must stay disabled: resurrecting it via the 0.1 floor
+	// would silently re-enable pacing at one request per ten seconds.
+	if resp.StatusCode == http.StatusTooManyRequests && l.baseRPS > 0 {
 		// Halve, with a floor so the client still makes progress rather than stalling.
 		l.currentRPS /= 2
 		if min := l.baseRPS / 16; l.currentRPS < min {
@@ -105,6 +108,25 @@ func (l *limiter) observe(resp *http.Response, now time.Time) {
 		}
 		l.lastRestore = now
 	}
+}
+
+// observeUsage folds Meta's percentage-based budget headers into the limiter. The Graph API
+// exposes no remaining-request count — only utilisation percentages — so nearing 100% is
+// treated like a soft 429: halve now rather than hit the hard block and stall for an hour.
+func (l *limiter) observeUsage(maxPct float64, now time.Time) {
+	if maxPct < 90 || l.baseRPS <= 0 {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.currentRPS /= 2
+	if min := l.baseRPS / 16; l.currentRPS < min {
+		l.currentRPS = min
+	}
+	if l.currentRPS < 0.1 {
+		l.currentRPS = 0.1
+	}
+	l.lastRestore = now
 }
 
 // restoreLocked walks a reduced rate back toward the configured one, +25% per 10s of calm.

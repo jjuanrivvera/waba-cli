@@ -2,192 +2,164 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 )
 
-// APIError is a non-2xx response from any Atlassian product, decoded into one shape.
-//
-// The five API families report failures differently — Jira uses `errorMessages` plus a field
-// keyed `errors` map, Confluence v2 uses an `errors` array of `{status,title,detail}`,
-// Confluence v1 uses `{statusCode,message}`, and JSM uses `{errorMessage}`. Collapsing them
-// here means every caller and every command renders errors the same way.
+// APIError is a Graph API failure with enough context to act on. Meta wraps every error in
+// one envelope: {"error":{message,type,code,error_subcode,error_data,fbtrace_id}} — the
+// numeric code, not the HTTP status, is what actually distinguishes "token expired" from
+// "outside the 24-hour window", so hints key off both.
 type APIError struct {
 	StatusCode int
 	Status     string
 	Method     string
 	URL        string
-	Code       string
-	Message    string
-	Details    []string
-	Body       string
+
+	Code      int    // Graph error code, e.g. 190 (bad token), 131047 (re-engagement)
+	Subcode   int    // error_subcode, e.g. 463 (token expired)
+	Type      string // e.g. OAuthException
+	Message   string
+	UserTitle string // error_user_title — already human-oriented when present
+	UserMsg   string // error_user_msg
+	Details   string // error_data.details — Cloud API puts the useful part here
+	TraceID   string // fbtrace_id, what Meta support asks for
+	Body      []byte // raw body for -o json and debugging
 }
 
 func (e *APIError) Error() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s %s: %d", e.Method, e.URL, e.StatusCode)
-	if e.Status != "" && !strings.HasPrefix(e.Status, fmt.Sprint(e.StatusCode)) {
-		fmt.Fprintf(&b, " %s", e.Status)
+	fmt.Fprintf(&b, "%s %s: %s", e.Method, e.URL, e.Status)
+	if e.Code != 0 {
+		fmt.Fprintf(&b, " (code %d", e.Code)
+		if e.Subcode != 0 {
+			fmt.Fprintf(&b, ".%d", e.Subcode)
+		}
+		b.WriteString(")")
 	}
-	if e.Message != "" {
-		fmt.Fprintf(&b, ": %s", e.Message)
+	msg := e.Message
+	if e.Details != "" {
+		msg = e.Details
 	}
-	for _, d := range e.Details {
-		fmt.Fprintf(&b, "\n  - %s", d)
+	if msg != "" {
+		fmt.Fprintf(&b, ": %s", msg)
 	}
-	if h := e.Hint(); h != "" {
-		fmt.Fprintf(&b, "\nhint: %s", h)
+	if hint := e.Hint(); hint != "" {
+		fmt.Fprintf(&b, "\n  hint: %s", hint)
+	}
+	if e.TraceID != "" {
+		fmt.Fprintf(&b, "\n  fbtrace_id: %s (quote this to Meta support)", e.TraceID)
 	}
 	return b.String()
 }
 
-// Hint maps a status (and a few Atlassian-specific failure shapes) to the next thing to try.
-// An error that only says "403" costs a support round trip; one that names the command to run
-// does not.
+// Hint maps the failure to the action that usually fixes it. Graph codes are checked before
+// HTTP status because Meta reuses 400 for half its distinct failures.
 func (e *APIError) Hint() string {
+	switch e.Code {
+	case 190:
+		return "access token invalid or expired — run `waba auth login` with a fresh System User token"
+	case 0:
+		// No Graph code parsed; fall through to the HTTP status below.
+	case 10, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 294, 299:
+		return "permission missing — the token needs whatsapp_business_messaging and whatsapp_business_management, granted to this WABA in Business Manager"
+	case 3:
+		return "app capability missing — check the app has the WhatsApp product added and API access enabled"
+	case 4, 17, 32, 613:
+		return "app-level rate limit hit — slow down and retry after the X-Business-Use-Case-Usage window resets"
+	case 80007:
+		return "WABA rate limit hit — slow down; check usage in WhatsApp Manager > Insights"
+	case 130429:
+		return "messaging throughput limit reached — queue and retry with backoff"
+	case 131056:
+		return "too many messages to this exact user pair — pause sends to this recipient briefly"
+	case 100:
+		if e.Subcode == 33 {
+			return "object missing or no permission to it — verify the id (`waba phone list`, `waba templates list`) and that the token can access this WABA"
+		}
+		return "invalid parameter — compare the payload against the reference (`waba <cmd> --help` shows an example; --dry-run prints the exact request)"
+	case 131030:
+		return "recipient not in the allowed list — in development mode add the number under App Dashboard > WhatsApp > API Setup"
+	case 131047, 131048:
+		return "outside the 24-hour customer service window — send an approved template instead (`waba send template`)"
+	case 131026:
+		return "message undeliverable — the number may not be on WhatsApp, or its client is too old for this message type"
+	case 131009:
+		return "invalid message id — pass the wamid exactly as delivered in the webhook, within 30 days"
+	case 132000:
+		return "template parameter count mismatch — the components you sent don't match the approved template's placeholders"
+	case 132001:
+		return "template not found or not approved in this language — `waba templates list --status APPROVED` to check"
+	case 133010:
+		return "phone number not registered on Cloud API — run `waba phone register --pin <6-digit>`"
+	case 368:
+		return "temporarily blocked for policy violations — check WhatsApp Manager for the account status"
+	case 131031:
+		return "account locked — check WhatsApp Manager; messaging is disabled until resolved"
+	case 131042:
+		return "payment issue — verify the WABA's payment method in Business Manager"
+	}
+
 	switch e.StatusCode {
 	case http.StatusUnauthorized:
-		return "credentials rejected — run `atlassian auth login` (Cloud API tokens are created at https://id.atlassian.com/manage-profile/security/api-tokens)"
+		return "credentials rejected — run `waba auth login`"
 	case http.StatusForbidden:
-		// Atlassian returns 403 both for "you lack the permission" and for "your token is
-		// fine but the product isn't licensed for you", which need different fixes.
-		return "authenticated but not permitted — check the account's project/space permissions and that it has a licence for this product; `atlassian auth status` shows who you are"
+		return "authenticated but not permitted — check the token's scopes and WABA access"
 	case http.StatusNotFound:
-		return "not found — verify the id/key with the matching `list` command, and confirm the right site is selected (`atlassian config list-sites`)"
-	case http.StatusMethodNotAllowed:
-		return "wrong method for this path — `atlassian op describe <operationId>` shows the documented method"
-	case http.StatusConflict:
-		return "conflict — the resource changed since you read it; re-read and retry"
-	case http.StatusRequestEntityTooLarge:
-		return "payload too large — Atlassian caps attachment and body size; split the request"
-	case http.StatusUnprocessableEntity:
-		return "the payload was understood but rejected — a required field is missing or a value is invalid; `atlassian op describe <operationId>` lists the documented parameters"
+		return "not found — verify the id with the matching `list` command and confirm the Graph version supports this endpoint"
 	case http.StatusTooManyRequests:
-		return "rate limited — the client already backs off and honours Retry-After; lower --rps or narrow the query if this persists"
-	case http.StatusGatewayTimeout, http.StatusBadGateway, http.StatusServiceUnavailable:
-		return "server error, usually transient — idempotent requests were retried automatically"
+		return "rate limited — the CLI backs off automatically; consider lowering --rate"
 	}
 	if e.StatusCode >= 500 {
-		return "server error, usually transient — retry, then check https://status.atlassian.com"
-	}
-	if e.StatusCode == http.StatusBadRequest {
-		// A 400 mentioning ADF is nearly always a plain string sent where rich text is
-		// required. Jira spells this several ways depending on the endpoint — "Operation
-		// value must be an Atlassian Document", "atlassianDocument", "ADF" — so match all of
-		// them rather than the one spelling that happened to be seen first.
-		haystack := strings.ToLower(e.Body + " " + e.Message)
-		if strings.Contains(haystack, "atlassiandocument") ||
-			strings.Contains(haystack, "atlassian document") ||
-			strings.Contains(haystack, "adf") {
-			return "Jira v3 expects Atlassian Document Format for rich-text fields — pass text/Markdown and let the CLI convert it, or supply raw ADF with the `-adf` variant of the flag"
-		}
-		return "the request was malformed — check required parameters with `atlassian op describe <operationId>`"
+		return "Meta server error, usually transient — retry, then check https://metastatus.com/whatsapp-business-api"
 	}
 	return ""
 }
 
-// Is lets callers match on status with errors.Is(err, api.ErrNotFound).
-func (e *APIError) Is(target error) bool {
-	var sentinel statusError
-	if errors.As(target, &sentinel) {
-		return e.StatusCode == int(sentinel)
-	}
-	return false
+// graphEnvelope mirrors Meta's error wrapper.
+type graphEnvelope struct {
+	Error struct {
+		Message   string `json:"message"`
+		Type      string `json:"type"`
+		Code      int    `json:"code"`
+		Subcode   int    `json:"error_subcode"`
+		UserTitle string `json:"error_user_title"`
+		UserMsg   string `json:"error_user_msg"`
+		TraceID   string `json:"fbtrace_id"`
+		ErrorData struct {
+			Details string `json:"details"`
+		} `json:"error_data"`
+	} `json:"error"`
 }
 
-// statusError is the concrete type behind the sentinel errors below.
-type statusError int
-
-func (s statusError) Error() string { return fmt.Sprintf("http %d", int(s)) }
-
-// Sentinels for errors.Is checks.
-var (
-	ErrUnauthorized = statusError(http.StatusUnauthorized)
-	ErrForbidden    = statusError(http.StatusForbidden)
-	ErrNotFound     = statusError(http.StatusNotFound)
-	ErrRateLimited  = statusError(http.StatusTooManyRequests)
-	ErrConflict     = statusError(http.StatusConflict)
-)
-
-// maxErrorBody caps how much of a failed response is retained. Atlassian can return a full
-// HTML error page from an edge proxy; keeping megabytes of it in an error serves nobody.
-const maxErrorBody = 8 << 10
-
-// parseAPIError builds an APIError from a failed response body, trying each product's error
-// shape in turn and falling back to the raw text.
-func parseAPIError(status int, statusText, method, url string, body []byte) *APIError {
-	e := &APIError{
-		StatusCode: status,
-		Status:     statusText,
-		Method:     method,
-		URL:        url,
-		Body:       truncate(string(body), maxErrorBody),
+// parseAPIError builds an APIError from a non-2xx response. A body that isn't the Graph
+// envelope (HTML from a proxy, an empty 502) still yields a useful error.
+func parseAPIError(statusCode int, status, method, url string, body []byte) *APIError {
+	e := &APIError{StatusCode: statusCode, Status: status, Method: method, URL: url, Body: body}
+	var env graphEnvelope
+	if err := json.Unmarshal(body, &env); err == nil {
+		e.Code = env.Error.Code
+		e.Subcode = env.Error.Subcode
+		e.Type = env.Error.Type
+		e.Message = env.Error.Message
+		e.UserTitle = env.Error.UserTitle
+		e.UserMsg = env.Error.UserMsg
+		e.Details = env.Error.ErrorData.Details
+		e.TraceID = env.Error.TraceID
 	}
-
-	// Jira platform / Agile: {"errorMessages":[...],"errors":{"field":"reason"}}
-	var jira struct {
-		ErrorMessages []string          `json:"errorMessages"`
-		Errors        map[string]string `json:"errors"`
-		Message       string            `json:"message"`
-		ErrorMessage  string            `json:"errorMessage"` // JSM
-		StatusCode    int               `json:"statusCode"`   // Confluence v1
-	}
-	if err := json.Unmarshal(body, &jira); err == nil {
-		if len(jira.ErrorMessages) > 0 {
-			e.Message = jira.ErrorMessages[0]
-			e.Details = append(e.Details, jira.ErrorMessages[1:]...)
-		}
-		for field, reason := range jira.Errors {
-			e.Details = append(e.Details, fmt.Sprintf("%s: %s", field, reason))
-		}
-		if e.Message == "" {
-			e.Message = firstNonEmpty(jira.Message, jira.ErrorMessage)
-		}
-	}
-
-	// Confluence v2: {"errors":[{"status":404,"code":"...","title":"...","detail":"..."}]}
 	if e.Message == "" {
-		var conf struct {
-			Errors []struct {
-				Code   string `json:"code"`
-				Title  string `json:"title"`
-				Detail string `json:"detail"`
-			} `json:"errors"`
-		}
-		if err := json.Unmarshal(body, &conf); err == nil && len(conf.Errors) > 0 {
-			e.Code = conf.Errors[0].Code
-			e.Message = firstNonEmpty(conf.Errors[0].Title, conf.Errors[0].Detail)
-			for _, extra := range conf.Errors[1:] {
-				e.Details = append(e.Details, firstNonEmpty(extra.Title, extra.Detail))
-			}
-		}
+		e.Message = strings.TrimSpace(truncateBody(body))
 	}
-
-	if e.Message == "" {
-		// Not JSON, or an unrecognised shape (an HTML error page from a proxy, typically).
-		if s := strings.TrimSpace(string(body)); s != "" && !strings.HasPrefix(s, "<") {
-			e.Message = truncate(s, 400)
-		}
-	}
-	// sortDetails keeps the rendering of a map-derived field-error list stable across runs.
-	sortDetails(e.Details)
 	return e
 }
 
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
+// truncateBody keeps error output readable when the body is a page of HTML.
+func truncateBody(b []byte) string {
+	const max = 300
+	s := string(b)
+	if len(s) > max {
+		return s[:max] + "…"
 	}
-	return ""
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
+	return s
 }
