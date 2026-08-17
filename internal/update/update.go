@@ -27,8 +27,8 @@ import (
 
 const (
 	githubOwner = "jjuanrivvera"
-	githubRepo  = "slackctl" // e.g. "garminctl", "wootctl", "n8n-cli"
-	binaryName  = "slackctl" // the binary inside the archive, e.g. "n8nctl"
+	githubRepo  = "waba-cli" // e.g. "garminctl", "wootctl", "n8n-cli"
+	binaryName  = "waba" // the binary inside the archive, e.g. "n8nctl"
 )
 
 // Release / Asset mirror the subset of the GitHub releases API we use.
