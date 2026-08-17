@@ -158,20 +158,6 @@ func (o *globalOptions) renderList(cmd *cobra.Command, items any, columns []stri
 	return r.Render(items)
 }
 
-// renderRawList renders a list of raw JSON items, decoding them once so the table renderer
-// sees plain maps.
-func (o *globalOptions) renderRawList(cmd *cobra.Command, items []json.RawMessage, columns []string, idField string) error {
-	rows := make([]any, 0, len(items))
-	for _, raw := range items {
-		var v any
-		if err := json.Unmarshal(raw, &v); err != nil {
-			continue
-		}
-		rows = append(rows, v)
-	}
-	return o.renderList(cmd, rows, columns, idField)
-}
-
 // addListFlags wires the standard pagination flags onto a list command; listParamsFrom
 // reads them back at run time. Split into two stateless halves because an opSpec's Flags
 // and Run are separate closures with no shared frame.

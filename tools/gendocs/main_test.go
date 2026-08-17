@@ -17,12 +17,12 @@ func TestGenerate_WritesTheWholeTree(t *testing.T) {
 	require.NoError(t, err)
 	assert.Greater(t, n, 100, "the reference should cover the whole command tree")
 
-	root, err := os.ReadFile(filepath.Join(dir, "atlassian.md"))
+	root, err := os.ReadFile(filepath.Join(dir, "waba.md"))
 	require.NoError(t, err)
-	assert.Contains(t, string(root), "atlassian")
+	assert.Contains(t, string(root), "waba")
 
 	// A page per major group, so a resource that stops being registered shows up here.
-	for _, page := range []string{"atlassian_issues.md", "atlassian_pages.md", "atlassian_op_call.md"} {
+	for _, page := range []string{"waba_send.md", "waba_templates.md", "waba_flows.md", "waba_send_text.md"} {
 		_, err := os.Stat(filepath.Join(dir, page))
 		require.NoErrorf(t, err, "expected a page for %s", page)
 	}
@@ -37,9 +37,9 @@ func TestGenerate_IsDeterministic(t *testing.T) {
 	_, err = generate(second)
 	require.NoError(t, err)
 
-	a, err := os.ReadFile(filepath.Join(first, "atlassian.md"))
+	a, err := os.ReadFile(filepath.Join(first, "waba.md"))
 	require.NoError(t, err)
-	b, err := os.ReadFile(filepath.Join(second, "atlassian.md"))
+	b, err := os.ReadFile(filepath.Join(second, "waba.md"))
 	require.NoError(t, err)
 	assert.Equal(t, string(a), string(b))
 
@@ -51,7 +51,7 @@ func TestFixLinks_StripsMarkdownSuffix(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "page.md")
 	require.NoError(t, os.WriteFile(path,
-		[]byte("See [issues](atlassian_issues.md) and [pages](atlassian_pages.md)."), 0o600))
+		[]byte("See [send](waba_send.md) and [templates](waba_templates.md)."), 0o600))
 	// A non-markdown file must be left alone.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("keep.md) me"), 0o600))
 
@@ -61,7 +61,7 @@ func TestFixLinks_StripsMarkdownSuffix(t *testing.T) {
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	assert.Equal(t, "See [issues](atlassian_issues) and [pages](atlassian_pages).", string(got))
+	assert.Equal(t, "See [send](waba_send) and [templates](waba_templates).", string(got))
 	assert.False(t, strings.Contains(string(got), ".md)"))
 
 	untouched, err := os.ReadFile(filepath.Join(dir, "notes.txt"))

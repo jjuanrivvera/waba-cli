@@ -47,8 +47,8 @@ func generate(out string) (int, error) {
 
 // fixLinks strips the ".md" from cobra's cross-references.
 //
-// MkDocs resolves links relative to the rendered page, so a link to "atlassian_issues.md"
-// 404s on the built site; "atlassian_issues" resolves correctly. A --strict site build fails
+// MkDocs resolves links relative to the rendered page, so a link to "waba_send.md"
+// 404s on the built site; "waba_send" resolves correctly. A --strict site build fails
 // on the dangling links, so this is not cosmetic.
 func fixLinks(dir string) (int, error) {
 	entries, err := os.ReadDir(dir)

@@ -14,6 +14,15 @@ linters:
     - unused
     - whitespace
   settings:
+    misspell:
+      # Help examples are bilingual (the primary users are LATAM businesses); these Spanish
+      # words trip the US dictionary.
+      ignore-rules:
+        - clientes
+        - coordinar
+        - descripcion
+        - nto
+        - exclusivas
     errcheck:
       # A failed write to the command's own stdout/stderr is not actionable: the process is
       # already printing its result, there is nowhere left to report the failure, and the

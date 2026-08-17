@@ -134,6 +134,10 @@ signs:
     output: true
 
 release:
+  # Named explicitly so `goreleaser check` works before a git remote exists.
+  github:
+    owner: jjuanrivvera
+    name: waba-cli
   draft: false
   prerelease: auto
   footer: |

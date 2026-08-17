@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -30,7 +31,7 @@ func ResolveToken(store Store, account string) (string, error) {
 	}
 	cred, err := store.Get(account)
 	if err != nil {
-		if err == ErrNotFound {
+		if errors.Is(err, ErrNotFound) {
 			return "", fmt.Errorf("no access token for account %q — run `waba auth login`, or set %s", account, TokenEnv)
 		}
 		return "", err

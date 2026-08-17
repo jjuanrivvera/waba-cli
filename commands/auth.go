@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -101,7 +103,7 @@ func newAuthLogoutCmd(o *globalOptions) *cobra.Command {
 				return err
 			}
 			if err := auth.NewStore().Delete(acct.Name); err != nil {
-				if err == auth.ErrNotFound {
+				if errors.Is(err, auth.ErrNotFound) {
 					o.note(cmd.ErrOrStderr(), "no token was stored for account %q", acct.Name)
 					return nil
 				}
@@ -182,14 +184,12 @@ func verifyToken(cmd *cobra.Command, o *globalOptions, acct *config.Account, tok
 }
 
 // resolveOrCreateAccount picks the account login should attach to: the named/active one, or
-// a fresh "default" so first-time `auth login` works without running init first.
+// a fresh account so first-time `auth login` works without running init first. The fresh
+// account honours WABA_ACCOUNT for its name and the env base URL/version overrides.
 func resolveOrCreateAccount(cfg *config.Config, explicit string) *config.Account {
 	if acct, err := cfg.Resolve(explicit); err == nil && acct.Name != "env" {
 		return acct
 	}
-	name := explicit
-	if name == "" {
-		name = "default"
-	}
-	return &config.Account{Name: name, BaseURL: config.DefaultBaseURL, GraphVersion: config.DefaultGraphVersion}
+	name := config.FirstNonEmpty(explicit, os.Getenv(config.EnvPrefix+"ACCOUNT"), "default")
+	return config.NewAccount(name)
 }

@@ -129,6 +129,8 @@ type Request struct {
 // Do performs a request and returns the raw response body, so callers that need the
 // untouched payload (-o json, `waba api`) never re-encode what the server sent.
 func (c *Client) Do(ctx context.Context, r Request) ([]byte, error) {
+	//nolint:bodyclose // doWithResponse reads and closes the body before returning; the
+	// *http.Response it hands back is retained only for its status and headers.
 	body, _, err := c.doWithResponse(ctx, r)
 	return body, err
 }

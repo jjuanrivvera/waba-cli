@@ -139,7 +139,7 @@
         "upload-json": "write",
         "assets": "read",
         "publish": "write",
-        "deprecate": "write",
+        "deprecate": "destructive",
         "delete": "destructive",
         "migrate": "write"
       }

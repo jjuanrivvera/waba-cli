@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -109,7 +110,7 @@ Account fields apply to the active account (or --` + ProfileFlag + `); output an
 				}
 				cfg.RateLimit = f
 			case "waba_id", "phone_number_id", "app_id", "business_id", "graph_version", "base_url":
-				acct := resolveOrCreateAccount(cfg, o.account)
+				acct := storedAccountForEdit(cfg, o.account)
 				switch key {
 				case "waba_id":
 					acct.WABAID = value
@@ -145,6 +146,25 @@ Account fields apply to the active account (or --` + ProfileFlag + `); output an
 	}
 	cmd.Annotations = map[string]string{"wabaLocal": "true"}
 	return cmd
+}
+
+// storedAccountForEdit returns the RAW stored account to mutate — never the env-overlaid
+// clone Resolve returns. Persisting a resolved clone would write WABA_* environment values
+// into the config file, silently overwriting whatever the user had stored.
+func storedAccountForEdit(cfg *config.Config, explicit string) *config.Account {
+	name := config.FirstNonEmpty(explicit, os.Getenv(config.EnvPrefix+"ACCOUNT"), cfg.CurrentAccount)
+	if name == "" && len(cfg.Accounts) == 1 {
+		for n := range cfg.Accounts {
+			name = n
+		}
+	}
+	if name == "" || name == "env" {
+		name = "default"
+	}
+	if a, ok := cfg.Accounts[name]; ok && a != nil {
+		return a
+	}
+	return &config.Account{Name: name}
 }
 
 func newConfigUseCmd(o *globalOptions) *cobra.Command {

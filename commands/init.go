@@ -65,8 +65,8 @@ default sender, and smoke-tests the result.`),
 				return fmt.Errorf("an access token is required — generate a System User token in Meta Business Manager")
 			}
 
-			acct := &config.Account{Name: name, BaseURL: config.DefaultBaseURL, GraphVersion: config.DefaultGraphVersion,
-				WABAID: wabaID, PhoneNumberID: phoneID, AppID: appID, BusinessID: bizID}
+			acct := config.NewAccount(name)
+			acct.WABAID, acct.PhoneNumberID, acct.AppID, acct.BusinessID = wabaID, phoneID, appID, bizID
 
 			ident, err := verifyToken(cmd, o, acct, token)
 			if err != nil {

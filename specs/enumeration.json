@@ -82,7 +82,7 @@
     {"resource": "flows", "verb": "upload-json", "method": "POST", "path": "/{flow-id}/assets", "action": "upload flow.json asset", "kind": "write", "wrapped": true},
     {"resource": "flows", "verb": "assets", "method": "GET", "path": "/{flow-id}/assets", "action": "list assets", "kind": "read", "wrapped": true},
     {"resource": "flows", "verb": "publish", "method": "POST", "path": "/{flow-id}/publish", "action": "publish flow", "kind": "write", "wrapped": true},
-    {"resource": "flows", "verb": "deprecate", "method": "POST", "path": "/{flow-id}/deprecate", "action": "deprecate flow", "kind": "write", "wrapped": true},
+    {"resource": "flows", "verb": "deprecate", "method": "POST", "path": "/{flow-id}/deprecate", "action": "deprecate flow (irreversible)", "kind": "destructive", "wrapped": true},
     {"resource": "flows", "verb": "delete", "method": "DELETE", "path": "/{flow-id}", "action": "delete DRAFT flow", "kind": "destructive", "wrapped": true},
     {"resource": "flows", "verb": "migrate", "method": "POST", "path": "/{dest-waba-id}/migrate_flows", "action": "copy flows between WABAs", "kind": "write", "wrapped": true},
     {"resource": "calls", "verb": "connect", "method": "POST", "path": "/{phone-number-id}/calls", "action": "action=connect", "kind": "write", "wrapped": true},

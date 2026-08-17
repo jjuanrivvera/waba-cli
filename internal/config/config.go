@@ -281,6 +281,17 @@ func (c *Config) applyDefaults(a *Account) {
 	}
 }
 
+// NewAccount builds an account with env-aware defaults, so a mock WABA_BASE_URL or a pinned
+// WABA_GRAPH_VERSION reaches first-run flows (init, auth login) too — those construct an
+// account before any config exists and would otherwise silently target production.
+func NewAccount(name string) *Account {
+	return &Account{
+		Name:         name,
+		BaseURL:      firstNonEmpty(os.Getenv(EnvPrefix+"BASE_URL"), DefaultBaseURL),
+		GraphVersion: firstNonEmpty(os.Getenv(EnvPrefix+"GRAPH_VERSION"), DefaultGraphVersion),
+	}
+}
+
 // Put adds or replaces an account.
 func (c *Config) Put(a *Account) error {
 	if err := ValidateAccountName(a.Name); err != nil {
