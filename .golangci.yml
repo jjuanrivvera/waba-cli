@@ -1,0 +1,39 @@
+version: "2"
+linters:
+  enable:
+    - bodyclose
+    - errcheck
+    - errorlint
+    - govet
+    - ineffassign
+    - misspell
+    - nolintlint
+    - revive
+    - staticcheck
+    - unconvert
+    - unused
+    - whitespace
+  settings:
+    errcheck:
+      # A failed write to the command's own stdout/stderr is not actionable: the process is
+      # already printing its result, there is nowhere left to report the failure, and the
+      # shell surfaces a broken pipe on its own. Checking every Fprintf would add ~50
+      # `_, _ =` prefixes that obscure the code without changing any behaviour.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    rules:
+      # Table-driven tests read better without the err-wrapping pedantry.
+      - path: _test\.go
+        linters: [errcheck, errorlint, bodyclose]
+formatters:
+  enable: [gofmt]
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -1,0 +1,20 @@
+# Release — delegates to the fleet-canonical reusable workflow in jjuanrivvera/.github.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    uses: jjuanrivvera/.github/.github/workflows/go-release.yml@main
+    with:
+      # git-flow: releases are tagged on develop, so main is fast-forwarded to the tag.
+      promote-main: true
+    secrets: inherit

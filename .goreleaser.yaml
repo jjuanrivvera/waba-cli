@@ -1,0 +1,141 @@
+version: 2
+project_name: waba-cli
+
+before:
+  hooks:
+    - go mod tidy
+    # Generated here rather than in the workflow, so `goreleaser release` works the same way
+    # whoever invokes it — the nfpms contents below reference these files, and a missing one
+    # fails the whole build at packaging time.
+    - ./scripts/completions.sh
+
+builds:
+  - id: waba
+    main: ./cmd/waba
+    binary: waba
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/jjuanrivvera/waba-cli/internal/version.Version={{.Version}}
+      - -X github.com/jjuanrivvera/waba-cli/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/jjuanrivvera/waba-cli/internal/version.Date={{.Date}}
+
+archives:
+  - id: waba
+    ids: [waba]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - completions/*
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - Merge pull request
+      - Merge branch
+
+# Homebrew CASK, not the deprecated `brews:`. `binaries:` is required because the cask is
+# named waba-cli while the binary inside the archive is `waba` — without it the symlink
+# points at the wrong name and `brew install` cannot find the command.
+homebrew_casks:
+  - name: waba-cli
+    binaries: [waba]
+    repository:
+      owner: jjuanrivvera
+      name: homebrew-waba-cli
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/jjuanrivvera/waba-cli
+    description: WhatsApp Cloud API from the command line
+    license: MIT
+    hooks:
+      post:
+        install: |
+          # An unsigned binary is SIGKILLed by Gatekeeper on macOS arm64 unless the
+          # quarantine attribute is stripped.
+          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/waba"]
+
+scoops:
+  - name: waba-cli
+    repository:
+      owner: jjuanrivvera
+      name: scoop-waba-cli
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/jjuanrivvera/waba-cli
+    description: WhatsApp Cloud API from the command line
+    license: MIT
+
+nfpms:
+  - id: packages
+    ids: [waba]
+    package_name: waba-cli
+    vendor: jjuanrivvera
+    homepage: https://github.com/jjuanrivvera/waba-cli
+    maintainer: Juan Rivera <jjuanrivvera@gmail.com>
+    description: WhatsApp Cloud API from the command line
+    license: MIT
+    formats: [deb, rpm, apk]
+    bindir: /usr/bin
+    contents:
+      - src: ./completions/waba.bash
+        dst: /usr/share/bash-completion/completions/waba
+        file_info: {mode: 0644}
+      - src: ./completions/waba.zsh
+        dst: /usr/share/zsh/site-functions/_waba
+        file_info: {mode: 0644}
+      - src: ./completions/waba.fish
+        dst: /usr/share/fish/vendor_completions.d/waba.fish
+        file_info: {mode: 0644}
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ---
+    Install: `curl -fsSL https://raw.githubusercontent.com/jjuanrivvera/waba-cli/main/install.sh | sh`

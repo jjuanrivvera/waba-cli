@@ -1,0 +1,48 @@
+# CI — delegates to the fleet-canonical reusable workflow in jjuanrivvera/.github.
+# Change fleet-wide CI policy there, not here. Only repo-specific inputs live below.
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: jjuanrivvera/.github/.github/workflows/go-ci.yml@main
+    with:
+      coverage-threshold: "80"
+      # Coverage comes largely from commands tests driving internal/api against a mock
+      # Graph API, so the cross-package statements have to be credited.
+      coverpkg: true
+      run-gosec: true
+      run-docs-check: true
+      run-build: true
+
+  gates:
+    # The cliwright determinism gates are deliberately NOT part of the reusable workflow, so
+    # they are wired here rather than re-inlined across the fleet.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: install the tools the gate scripts use
+        # dod-check.sh greps with ripgrep and the installer is shellchecked; neither tool is
+        # on the runner by default, and a missing tool makes every check using it "fail".
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ripgrep shellcheck
+      - run: make build
+      - name: surface matches the manifest
+        run: ./scripts/spec-check.sh
+      - name: manifest still wraps the whole enumerated API
+        run: ./scripts/spec-completeness.sh api-manifest.json 90
+      - name: definition of done
+        run: ./scripts/dod-check.sh waba
+      - name: shellcheck
+        run: shellcheck install.sh scripts/*.sh

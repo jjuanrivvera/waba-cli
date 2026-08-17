@@ -1,0 +1,29 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+    paths: [docs/**, mkdocs.yml, README.md]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GOOGLE_ANALYTICS_KEY: ${{ vars.GOOGLE_ANALYTICS_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0}
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@v7
+        with: {python-version: "3.x"}
+      - run: pip install mkdocs-material
+      - name: regenerate the command reference
+        run: go run ./tools/gendocs
+      - run: mkdocs gh-deploy --force

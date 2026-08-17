@@ -1,0 +1,8 @@
+bin/
+dist/
+coverage.out
+coverage.html
+site/
+completions/
+*.tmp
+.DS_Store

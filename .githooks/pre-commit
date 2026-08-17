@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Local pre-flight. CI remains the source of truth; this blocks the obvious breakage fast.
+# Docs-only commits skip the Go gate entirely so they stay instant.
+set -euo pipefail
+if ! git diff --cached --name-only | grep -Eq '\.go$|^go\.(mod|sum)$'; then
+  exit 0
+fi
+echo "pre-commit: gofmt / vet / lint / test"
+fmt_out=$(gofmt -s -l $(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true) 2>/dev/null || true)
+if [ -n "$fmt_out" ]; then
+  echo "✗ gofmt -s needed:"; echo "$fmt_out"; exit 1
+fi
+go vet ./... || exit 1
+if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./... || exit 1; fi
+go test -short -race ./... || exit 1

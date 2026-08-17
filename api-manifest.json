@@ -1,0 +1,347 @@
+{
+  "api": "WhatsApp Cloud API",
+  "binary": "waba",
+  "base_url": "https://graph.facebook.com",
+  "graph_version": "v25.0",
+  "profile_flag": "account",
+  "profile_noun": "account",
+  "api_method_total": 105,
+  "api_method_source": "developers.facebook.com reference method index (Cloud API + Business Management + Flows + Calling), scraped 2026-08-17 — specs/enumeration.json",
+  "resources": [
+    {
+      "name": "account",
+      "verbs": [
+        "get",
+        "update",
+        "enable-insights"
+      ],
+      "kinds": {
+        "get": "read",
+        "update": "write",
+        "enable-insights": "write"
+      }
+    },
+    {
+      "name": "analytics",
+      "verbs": [
+        "messaging",
+        "conversations",
+        "pricing",
+        "calls",
+        "templates",
+        "template-groups",
+        "groups"
+      ],
+      "kinds": {
+        "messaging": "read",
+        "conversations": "read",
+        "pricing": "read",
+        "calls": "read",
+        "templates": "read",
+        "template-groups": "read",
+        "groups": "read"
+      }
+    },
+    {
+      "name": "apps",
+      "verbs": [
+        "list",
+        "subscribe",
+        "unsubscribe"
+      ],
+      "kinds": {
+        "list": "read",
+        "subscribe": "write",
+        "unsubscribe": "destructive"
+      }
+    },
+    {
+      "name": "automation",
+      "verbs": [
+        "get",
+        "update"
+      ],
+      "kinds": {
+        "get": "read",
+        "update": "write"
+      }
+    },
+    {
+      "name": "block",
+      "verbs": [
+        "add",
+        "remove",
+        "list"
+      ],
+      "kinds": {
+        "add": "write",
+        "remove": "write",
+        "list": "read"
+      }
+    },
+    {
+      "name": "calls",
+      "verbs": [
+        "connect",
+        "pre-accept",
+        "accept",
+        "reject",
+        "terminate",
+        "permissions",
+        "request-permission",
+        "send-call-button"
+      ],
+      "kinds": {
+        "connect": "write",
+        "pre-accept": "write",
+        "accept": "write",
+        "reject": "write",
+        "terminate": "write",
+        "permissions": "read",
+        "request-permission": "write",
+        "send-call-button": "write"
+      }
+    },
+    {
+      "name": "commerce",
+      "verbs": [
+        "get",
+        "update"
+      ],
+      "kinds": {
+        "get": "read",
+        "update": "write"
+      }
+    },
+    {
+      "name": "flows",
+      "verbs": [
+        "list",
+        "create",
+        "get",
+        "preview",
+        "metrics",
+        "update",
+        "upload-json",
+        "assets",
+        "publish",
+        "deprecate",
+        "delete",
+        "migrate"
+      ],
+      "kinds": {
+        "list": "read",
+        "create": "write",
+        "get": "read",
+        "preview": "read",
+        "metrics": "read",
+        "update": "write",
+        "upload-json": "write",
+        "assets": "read",
+        "publish": "write",
+        "deprecate": "write",
+        "delete": "destructive",
+        "migrate": "write"
+      }
+    },
+    {
+      "name": "groups",
+      "verbs": [
+        "create",
+        "list",
+        "get",
+        "update",
+        "delete",
+        "remove-participants",
+        "invite-link",
+        "reset-invite-link",
+        "send",
+        "pin",
+        "unpin"
+      ],
+      "kinds": {
+        "create": "write",
+        "list": "read",
+        "get": "read",
+        "update": "write",
+        "delete": "destructive",
+        "remove-participants": "destructive",
+        "invite-link": "read",
+        "reset-invite-link": "write",
+        "send": "write",
+        "pin": "write",
+        "unpin": "write"
+      }
+    },
+    {
+      "name": "marketing",
+      "verbs": [
+        "send"
+      ],
+      "kinds": {
+        "send": "write"
+      }
+    },
+    {
+      "name": "media",
+      "verbs": [
+        "upload",
+        "url",
+        "download",
+        "delete"
+      ],
+      "kinds": {
+        "upload": "write",
+        "url": "read",
+        "download": "read",
+        "delete": "destructive"
+      }
+    },
+    {
+      "name": "messages",
+      "verbs": [
+        "read",
+        "typing"
+      ],
+      "kinds": {
+        "read": "write",
+        "typing": "write"
+      }
+    },
+    {
+      "name": "phone",
+      "verbs": [
+        "list",
+        "get",
+        "name-status",
+        "register",
+        "deregister",
+        "request-code",
+        "verify-code",
+        "set-pin",
+        "settings",
+        "update-settings"
+      ],
+      "kinds": {
+        "list": "read",
+        "get": "read",
+        "name-status": "read",
+        "register": "write",
+        "deregister": "destructive",
+        "request-code": "write",
+        "verify-code": "write",
+        "set-pin": "write",
+        "settings": "read",
+        "update-settings": "write"
+      }
+    },
+    {
+      "name": "profile",
+      "verbs": [
+        "get",
+        "update"
+      ],
+      "kinds": {
+        "get": "read",
+        "update": "write"
+      }
+    },
+    {
+      "name": "qr",
+      "verbs": [
+        "create",
+        "list",
+        "get",
+        "update",
+        "delete"
+      ],
+      "kinds": {
+        "create": "write",
+        "list": "read",
+        "get": "read",
+        "update": "write",
+        "delete": "destructive"
+      }
+    },
+    {
+      "name": "send",
+      "verbs": [
+        "text",
+        "image",
+        "audio",
+        "video",
+        "document",
+        "sticker",
+        "location",
+        "contacts",
+        "reaction",
+        "template",
+        "interactive",
+        "buttons",
+        "list",
+        "cta-url",
+        "flow"
+      ],
+      "kinds": {
+        "text": "write",
+        "image": "write",
+        "audio": "write",
+        "video": "write",
+        "document": "write",
+        "sticker": "write",
+        "location": "write",
+        "contacts": "write",
+        "reaction": "write",
+        "template": "write",
+        "interactive": "write",
+        "buttons": "write",
+        "list": "write",
+        "cta-url": "write",
+        "flow": "write"
+      }
+    },
+    {
+      "name": "templates",
+      "verbs": [
+        "list",
+        "create",
+        "get",
+        "edit",
+        "delete",
+        "delete-by-id",
+        "bulk-delete",
+        "compare",
+        "click-tracking"
+      ],
+      "kinds": {
+        "list": "read",
+        "create": "write",
+        "get": "read",
+        "edit": "write",
+        "delete": "destructive",
+        "delete-by-id": "destructive",
+        "bulk-delete": "destructive",
+        "compare": "read",
+        "click-tracking": "write"
+      }
+    },
+    {
+      "name": "uploads",
+      "verbs": [
+        "start",
+        "upload",
+        "status"
+      ],
+      "kinds": {
+        "start": "write",
+        "upload": "write",
+        "status": "read"
+      }
+    }
+  ],
+  "unwrapped": [
+    "groups join-requests",
+    "groups approve-join",
+    "groups reject-join"
+  ]
+}
