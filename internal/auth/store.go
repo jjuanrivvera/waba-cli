@@ -64,7 +64,7 @@ func keyringPassword() (pw string, fromFile bool, err error) {
 		}
 		path = filepath.Join(dir, keyringPasswordFile)
 	}
-	info, err := os.Stat(path)
+	info, err := os.Stat(path) // #nosec G703 -- the path is the user's own configured password file
 	if err != nil {
 		if os.IsNotExist(err) && !explicit {
 			return "", false, nil // default file simply absent
@@ -78,7 +78,7 @@ func keyringPassword() (pw string, fromFile bool, err error) {
 		return "", false, fmt.Errorf("%s is readable by others (%#o); run: chmod 600 %s",
 			path, info.Mode().Perm(), path)
 	}
-	raw, err := os.ReadFile(path) // #nosec G304 -- path is the user's own configured password file
+	raw, err := os.ReadFile(path) // #nosec G304 G703 -- path is the user's own configured password file
 	if err != nil {
 		return "", false, fmt.Errorf("read keyring password file: %w", err)
 	}
