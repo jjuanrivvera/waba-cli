@@ -76,14 +76,14 @@ api-manifest.json.
 
 Profiles ("accounts") bundle a WABA id, a default phone number id and an app id, so daily
 use is just 'waba send text --to ... "hi"'. Tokens live in the OS keyring.`),
-		Example: strings.TrimSpace(`
+		Example: "  " + strings.TrimSpace(`
   # First-run setup: token, WABA id, default phone number
   waba init
 
   # Send messages
-  waba send text --to 5730011122233 "Your order shipped!"
-  waba send template --to 5730011122233 --name order_update --lang es_MX
-  waba send image --to 5730011122233 --link https://example.com/cat.jpg
+  waba send text --to 573001112233 "Your order shipped!"
+  waba send template --to 573001112233 --name order_update --lang es_MX
+  waba send image --to 573001112233 --link https://example.com/cat.jpg
 
   # Templates
   waba templates list --status APPROVED

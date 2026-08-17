@@ -109,7 +109,7 @@ func (e *APIError) Hint() string {
 	case http.StatusNotFound:
 		return "not found — verify the id with the matching `list` command and confirm the Graph version supports this endpoint"
 	case http.StatusTooManyRequests:
-		return "rate limited — the CLI backs off automatically; consider lowering --rate"
+		return "rate limited — the CLI backs off automatically; consider lowering --rps"
 	}
 	if e.StatusCode >= 500 {
 		return "Meta server error, usually transient — retry, then check https://metastatus.com/whatsapp-business-api"
