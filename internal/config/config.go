@@ -32,29 +32,29 @@ const DefaultGraphVersion = "v25.0"
 // Account is one WhatsApp Business Account profile: the IDs a command needs so the user
 // doesn't have to repeat them per invocation. The access token itself is in the keyring.
 type Account struct {
-	Name string `yaml:"name"`
+	Name string `yaml:"name" json:"name"`
 
 	// WABAID is the WhatsApp Business Account id — the node template, analytics and phone
 	// number listing operations hang off.
-	WABAID string `yaml:"waba_id,omitempty"`
+	WABAID string `yaml:"waba_id,omitempty" json:"waba_id,omitempty"`
 
 	// PhoneNumberID is the default business phone number id used to send messages. It is an
 	// id from GET /{waba-id}/phone_numbers, not the display number.
-	PhoneNumberID string `yaml:"phone_number_id,omitempty"`
+	PhoneNumberID string `yaml:"phone_number_id,omitempty" json:"phone_number_id,omitempty"`
 
 	// AppID is the Meta app id, needed only by the resumable upload API (template header
 	// media) — POST /{app-id}/uploads.
-	AppID string `yaml:"app_id,omitempty"`
+	AppID string `yaml:"app_id,omitempty" json:"app_id,omitempty"`
 
 	// BusinessID is the Meta business portfolio id, needed only to list the WABAs the
 	// portfolio owns or has been shared.
-	BusinessID string `yaml:"business_id,omitempty"`
+	BusinessID string `yaml:"business_id,omitempty" json:"business_id,omitempty"`
 
 	// GraphVersion pins the Graph API version for this account (e.g. "v25.0").
-	GraphVersion string `yaml:"graph_version,omitempty"`
+	GraphVersion string `yaml:"graph_version,omitempty" json:"graph_version,omitempty"`
 
 	// BaseURL overrides the Graph host — mock servers and tests only.
-	BaseURL string `yaml:"base_url,omitempty"`
+	BaseURL string `yaml:"base_url,omitempty" json:"base_url,omitempty"`
 }
 
 // Config is the whole file.

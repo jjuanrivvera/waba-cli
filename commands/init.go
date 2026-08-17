@@ -94,7 +94,22 @@ default sender, and smoke-tests the result.`),
 					} `json:"data"`
 				}
 				if err := client.GetJSON(cmd.Context(), acct.WABAID+"/phone_numbers", nil, &page); err != nil {
-					o.note(cmd.ErrOrStderr(), "could not list phone numbers: %v", err)
+					// The most common stumble here is pasting the PHONE NUMBER id at the
+					// WABA prompt (both are opaque 15-16 digit numbers, shown side by side
+					// in the App Dashboard). Probe for it and self-correct instead of
+					// leaving a broken account behind.
+					var probe struct {
+						Display string `json:"display_phone_number"`
+					}
+					if perr := client.GetJSON(cmd.Context(), acct.WABAID,
+						urlValues("fields", "display_phone_number"), &probe); perr == nil && probe.Display != "" {
+						o.note(cmd.ErrOrStderr(), "%s is a phone number id (%s), not a WABA id — storing it as the default phone number. Find the WABA id in App Dashboard > WhatsApp > API Setup, then run `waba config set waba_id <id>`",
+							acct.WABAID, probe.Display)
+						acct.PhoneNumberID = acct.WABAID
+						acct.WABAID = ""
+					} else {
+						o.note(cmd.ErrOrStderr(), "could not list phone numbers: %v", err)
+					}
 				} else {
 					for _, p := range page.Data {
 						fmt.Fprintf(cmd.ErrOrStderr(), "  %s  %s  (%s)\n", p.ID, p.Display, p.VerifiedName)

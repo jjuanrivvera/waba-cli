@@ -143,6 +143,10 @@ func TestClient_ErrorHintsByCode(t *testing.T) {
 	// Unknown code falls through to HTTP status.
 	e := &APIError{StatusCode: 500, Code: 999999}
 	assert.Contains(t, e.Hint(), "transient")
+
+	// "nonexisting field" is Graph for a wrong node type or missing field permission.
+	e = &APIError{StatusCode: 400, Code: 100, Message: "(#100) Tried accessing nonexisting field (phone_numbers)"}
+	assert.Contains(t, e.Hint(), "metadata=1")
 }
 
 func TestClient_NonJSONErrorBodyStillUseful(t *testing.T) {

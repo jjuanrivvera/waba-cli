@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/zalando/go-keyring"
@@ -70,7 +71,10 @@ func keyringPassword() (pw string, fromFile bool, err error) {
 		}
 		return "", false, fmt.Errorf("read %s: %w", KeyringPasswordFileEnv, err)
 	}
-	if info.Mode().Perm()&0o077 != 0 {
+	// Windows has no POSIX permission bits — Perm() reports 0666 for any writable file, so
+	// this check would refuse every password file there. NTFS ACLs are the protection on
+	// Windows; the strict-mode check is meaningful only on Unix.
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
 		return "", false, fmt.Errorf("%s is readable by others (%#o); run: chmod 600 %s",
 			path, info.Mode().Perm(), path)
 	}

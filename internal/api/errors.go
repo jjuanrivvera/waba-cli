@@ -78,6 +78,9 @@ func (e *APIError) Hint() string {
 		if e.Subcode == 33 {
 			return "object missing or no permission to it — verify the id (`waba phone list`, `waba templates list`) and that the token can access this WABA"
 		}
+		if strings.Contains(strings.ToLower(e.Message), "nonexisting field") {
+			return "this id is not the node type the command expects (phone number id vs WABA id vs app id are easy to swap — `waba api GET <id> -q metadata=1` shows what a node is), or the token lacks permission for that field"
+		}
 		return "invalid parameter — compare the payload against the reference (`waba <cmd> --help` shows an example; --dry-run prints the exact request)"
 	case 131030:
 		return "recipient not in the allowed list — in development mode add the number under App Dashboard > WhatsApp > API Setup"

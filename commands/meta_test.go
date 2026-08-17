@@ -137,6 +137,32 @@ func TestInit_NonInteractive(t *testing.T) {
 	assert.Equal(t, "tok-1", cred.Token)
 }
 
+func TestInit_DetectsPhoneIDPastedAsWABA(t *testing.T) {
+	m := newMockGraph(t)
+	testEnv(t, m)
+	t.Setenv("WABA_ACCESS_TOKEN", "")
+	t.Setenv("WABA_WABA_ID", "")
+	t.Setenv("WABA_PHONE_NUMBER_ID", "")
+	m.on("GET", "/v25.0/me", `{"id":"555","name":"SU"}`)
+	// Pasting the phone number id at the WABA prompt: the phone_numbers edge 400s, but the
+	// node itself is a phone number — init must self-correct instead of saving a broken WABA.
+	m.onStatus("GET", "/v25.0/1214/phone_numbers", 400,
+		`{"error":{"message":"(#100) Tried accessing nonexisting field (phone_numbers)","code":100}}`)
+	m.on("GET", "/v25.0/1214", `{"display_phone_number":"+57 323 4379352","id":"1214"}`)
+
+	_, errOut, err := runCmd(t, "init", "--name", "oops", "--token", "tok-1", "--waba-id", "1214")
+	require.NoError(t, err)
+	assert.Contains(t, errOut, "phone number id")
+	assert.Contains(t, errOut, "config set waba_id")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	acct := cfg.Accounts["oops"]
+	require.NotNil(t, acct)
+	assert.Empty(t, acct.WABAID, "the mistaken id must not be saved as the WABA")
+	assert.Equal(t, "1214", acct.PhoneNumberID, "the id is adopted as the default phone number")
+}
+
 func TestDoctor_ReportsChecks(t *testing.T) {
 	m := newMockGraph(t)
 	testEnv(t, m)

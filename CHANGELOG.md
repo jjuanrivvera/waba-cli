@@ -4,6 +4,24 @@ All notable changes to waba-cli are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-08-17
+
+### Fixed
+- `waba init` now detects a phone number id pasted at the WABA id prompt, adopts it as the
+  default phone number and points at where the real WABA id lives, instead of saving a
+  broken account.
+- Graph's "(#100) Tried accessing nonexisting field" errors now hint at the node-type
+  mix-up (phone id vs WABA id vs app id) and the `metadata=1` probe.
+- The encrypted-file keyring password check no longer refuses every file on Windows, where
+  POSIX permission bits don't exist.
+- `config view -o json`/`yaml` now renders accounts with stable lowercase keys.
+
+### Security
+- Toolchain bumped to go1.25.13, clearing GO-2026-6218 (net/url), GO-2026-6090
+  (crypto/tls), GO-2026-6089 / GO-2026-5026 (net/http) and GO-2026-5972 (encoding/asn1).
+- github.com/modelcontextprotocol/go-sdk bumped v1.3.0 → v1.4.1, clearing GO-2026-5771 and
+  GO-2026-4773. `govulncheck ./...` is clean.
+
 ## [0.1.0] - 2026-08-17
 
 ### Added
