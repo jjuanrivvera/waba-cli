@@ -4,7 +4,7 @@ All notable changes to waba-cli are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.0] - 2026-08-17
 
 ### Added
 - Full WhatsApp Cloud API surface: 102 of the 105 enumerated operations across 18 command
