@@ -21,12 +21,12 @@ func newCompletionCmd(root *cobra.Command) *cobra.Command {
 Generate a shell completion script.
 
 Completion is worth installing here: it completes site names, output formats, column names
-and — most usefully — the 1,143 operation ids that 'atlassian op call' accepts.
+plus resource and verb names.
 
-  bash:  atlassian completion bash > /etc/bash_completion.d/atlassian
-  zsh:   atlassian completion zsh > "${fpath[1]}/_atlassian"
-  fish:  atlassian completion fish > ~/.config/fish/completions/atlassian.fish
-  pwsh:  atlassian completion powershell | Out-String | Invoke-Expression`),
+  bash:  waba completion bash > /etc/bash_completion.d/waba
+  zsh:   waba completion zsh > "${fpath[1]}/_waba"
+  fish:  waba completion fish > ~/.config/fish/completions/waba.fish
+  pwsh:  waba completion powershell | Out-String | Invoke-Expression`),
 		Args:      cobra.ExactArgs(1),
 		ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -49,6 +49,6 @@ and — most usefully — the 1,143 operation ids that 'atlassian op call' accep
 		},
 	}
 	annotate(cmd, kindRead)
-	cmd.Annotations["atlassianLocal"] = "true"
+	cmd.Annotations["wabaLocal"] = "true"
 	return cmd
 }

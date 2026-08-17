@@ -40,12 +40,12 @@ func newVersionCmd(o *globalOptions) *cobra.Command {
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print as JSON")
 	cmd.Flags().BoolVar(&check, "check", false, "check GitHub for a newer release")
 	annotate(cmd, kindRead)
-	cmd.Annotations["atlassianLocal"] = "true"
+	cmd.Annotations["wabaLocal"] = "true"
 	return cmd
 }
 
 // latestReleaseURL is the GitHub API endpoint for the newest published release.
-const latestReleaseURL = "https://api.github.com/repos/jjuanrivvera/atlassian-cli/releases/latest"
+const latestReleaseURL = "https://api.github.com/repos/jjuanrivvera/waba-cli/releases/latest"
 
 func runVersionCheck(cmd *cobra.Command, info version.Info, asJSON bool) error {
 	latest, err := fetchLatestVersion(cmd.Context(), nil)
@@ -64,9 +64,9 @@ func runVersionCheck(cmd *cobra.Command, info version.Info, asJSON bool) error {
 		return enc.Encode(result)
 	}
 	if result.Outdated {
-		fmt.Fprintf(cmd.OutOrStdout(), "atlassian %s (latest: %s) — run `atlassian update`\n", info.Version, latest)
+		fmt.Fprintf(cmd.OutOrStdout(), "waba %s (latest: %s) — run `waba update`\n", info.Version, latest)
 	} else {
-		fmt.Fprintf(cmd.OutOrStdout(), "atlassian %s is up to date\n", info.Version)
+		fmt.Fprintf(cmd.OutOrStdout(), "waba %s is up to date\n", info.Version)
 	}
 	return nil
 }

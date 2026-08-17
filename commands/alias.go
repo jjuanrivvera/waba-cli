@@ -117,9 +117,9 @@ func newAliasCmd(o *globalOptions) *cobra.Command {
 		Use:   "alias",
 		Short: "Define shortcuts for longer commands",
 		Example: strings.TrimSpace(`
-  atlassian alias set mine "issues list --jql 'assignee = currentUser() AND resolution = Unresolved'"
-  atlassian mine
-  atlassian alias list`),
+  waba alias set approved "templates list --status APPROVED"
+  waba approved
+  waba alias list`),
 	}
 	cmd.AddCommand(newAliasSetCmd(o), newAliasListCmd(o), newAliasRemoveCmd(o))
 	return cmd
@@ -151,7 +151,7 @@ func newAliasSetCmd(_ *globalOptions) *cobra.Command {
 		},
 	}
 	annotate(cmd, kindWrite)
-	cmd.Annotations["atlassianLocal"] = "true"
+	cmd.Annotations["wabaLocal"] = "true"
 	return cmd
 }
 
@@ -179,7 +179,7 @@ func newAliasListCmd(o *globalOptions) *cobra.Command {
 		},
 	}
 	annotate(cmd, kindRead)
-	cmd.Annotations["atlassianLocal"] = "true"
+	cmd.Annotations["wabaLocal"] = "true"
 	return cmd
 }
 
@@ -206,6 +206,6 @@ func newAliasRemoveCmd(_ *globalOptions) *cobra.Command {
 		},
 	}
 	annotate(cmd, kindDestructive)
-	cmd.Annotations["atlassianLocal"] = "true"
+	cmd.Annotations["wabaLocal"] = "true"
 	return cmd
 }

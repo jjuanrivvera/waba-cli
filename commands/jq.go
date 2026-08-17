@@ -10,7 +10,7 @@ import (
 // applyJQ filters a result through a gojq expression.
 //
 // This is the escape hatch for everything the built-in --columns/--filter flags do not
-// cover: the full Atlassian payload is far richer than any fixed column set, and piping to
+// cover: the full Graph payload is far richer than any fixed column set, and piping to
 // an external jq would force the user to choose -o json and lose table rendering.
 func applyJQ(expr string, v any) (any, error) {
 	query, err := gojq.Parse(expr)
