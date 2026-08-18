@@ -181,6 +181,91 @@ func TestNewStore_ExplicitBackendKeyring(t *testing.T) {
 	assert.Equal(t, "os-keyring", NewStore().Backend())
 }
 
+func TestSelectStore_NoKeyringNoPassword_MachineFallback(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv(KeyringPasswordEnv, "")
+	t.Setenv(KeyringPasswordFileEnv, "")
+	t.Setenv(MachineSecretEnv, "test-machine")
+
+	s := selectStore(false, "", false)
+	assert.Equal(t, "encrypted-file (machine key)", s.Backend(),
+		"a headless box with no password must still get a working store")
+
+	require.NoError(t, s.Set("acc", Credential{Token: "machine-secret"}))
+	got, err := s.Get("acc")
+	require.NoError(t, err)
+	assert.Equal(t, "machine-secret", got.Token)
+
+	// A fresh store must read the same credential back (round-trip across processes).
+	s2, err := newMachineFileStore()
+	require.NoError(t, err)
+	got, err = s2.Get("acc")
+	require.NoError(t, err)
+	assert.Equal(t, "machine-secret", got.Token)
+
+	// The machine store lives in its own file so a later password opt-in can't collide
+	// with a differently-keyed payload in credentials.enc.
+	assert.FileExists(t, filepath.Join(cfg, "waba-cli", machineCredentialsFile))
+
+	raw, err := os.ReadFile(filepath.Join(cfg, "waba-cli", machineCredentialsFile))
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "machine-secret", "token must never appear in plaintext on disk")
+}
+
+func TestSelectStore_KeyringAvailable(t *testing.T) {
+	t.Setenv(KeyringPasswordEnv, "")
+	t.Setenv(KeyringPasswordFileEnv, "")
+	assert.Equal(t, "os-keyring", selectStore(true, "", false).Backend(),
+		"a usable keyring wins over the machine fallback")
+	assert.Equal(t, "os-keyring", selectStore(true, "pw", false).Backend(),
+		"an env password is not a file opt-in, so a usable keyring still wins")
+}
+
+func TestSelectStore_PasswordBeatsMachineOnHeadless(t *testing.T) {
+	t.Setenv(KeyringPasswordEnv, "pw")
+	t.Setenv(MachineSecretEnv, "test-machine")
+	assert.Equal(t, "encrypted-file", selectStore(false, "pw", false).Backend(),
+		"a configured password upgrades the headless fallback to real password encryption")
+}
+
+func TestSelectStore_PasswordFileForcesFileEvenWithKeyring(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv(KeyringPasswordEnv, "")
+	require.NoError(t, os.MkdirAll(filepath.Join(cfg, "waba-cli"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(cfg, "waba-cli", "keyring-password"),
+		[]byte("pw"), 0o600))
+
+	assert.Equal(t, "encrypted-file", selectStore(true, "pw", true).Backend(),
+		"a password FILE is a persistent opt-in to the file store even where a keyring exists")
+}
+
+func TestNewStore_ExplicitFileWithoutPassword_MachineFallback(t *testing.T) {
+	t.Setenv(KeyringBackendEnv, "file")
+	t.Setenv(KeyringPasswordEnv, "")
+	t.Setenv(KeyringPasswordFileEnv, "")
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv(MachineSecretEnv, "test-machine")
+
+	assert.Equal(t, "encrypted-file (machine key)", NewStore().Backend(),
+		"an explicit file backend with no password falls back to the machine-keyed store, never the keyring")
+}
+
+func TestMachineID_EnvOverride(t *testing.T) {
+	t.Setenv(MachineSecretEnv, "pinned-id")
+	id, err := machineID()
+	require.NoError(t, err)
+	assert.Equal(t, "pinned-id", id)
+}
+
+func TestMachineID_ResolvesOnThisBox(t *testing.T) {
+	t.Setenv(MachineSecretEnv, "")
+	id, err := machineID()
+	require.NoError(t, err)
+	assert.NotEmpty(t, id, "every machine should yield a stable identifier")
+}
+
 func TestDecodeCredential_LegacyBareToken(t *testing.T) {
 	c, err := decodeCredential("bare-token-string")
 	require.NoError(t, err)
