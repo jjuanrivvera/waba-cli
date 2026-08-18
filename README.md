@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/assets/logo.svg" width="96" alt="waba logo">
+
 # waba
 
 [![CI](https://github.com/jjuanrivvera/waba-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/jjuanrivvera/waba-cli/actions/workflows/ci.yml)

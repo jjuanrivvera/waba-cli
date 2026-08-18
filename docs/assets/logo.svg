@@ -1,5 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="#0d9488"/>
-  <path d="M32 14c-9.9 0-18 7.6-18 17 0 3.3 1 6.4 2.8 9L14 50l10.4-2.6c2.3 1 4.9 1.6 7.6 1.6 9.9 0 18-7.6 18-17s-8.1-18-18-18z" fill="#fff"/>
-  <path d="M25 26h14M25 32h14M25 38h8" stroke="#0d9488" stroke-width="3" stroke-linecap="round"/>
+  <!-- Dark rounded-square badge -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#26292e"/>
+  <!-- Hexagonal chat bubble with tail (original shape, not the WhatsApp silhouette) -->
+  <path d="M32 10 L48.5 19.5 Q50 20.4 50 22.1 L50 39.9 Q50 41.6 48.5 42.5 L34.8 50.4
+           L26.5 55.5 Q24.6 56.6 24.2 54.4 L23.5 48.7 L15.5 44.1 Q14 43.2 14 41.5
+           L14 22.1 Q14 20.4 15.5 19.5 L30 11 Q31 10.2 32 10 Z"
+        fill="#3fae52"/>
+  <!-- Terminal prompt chevron -->
+  <path d="M27 24 L37 31.5 L27 39" fill="none" stroke="#ffffff" stroke-width="4.6"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
