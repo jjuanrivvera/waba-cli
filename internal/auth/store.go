@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -40,6 +41,17 @@ const KeyringPasswordFileEnv = "WABA_KEYRING_PASSWORD_FILE"
 
 // keyringPasswordFile is the default password-file name, read when neither env var is set.
 const keyringPasswordFile = "keyring-password"
+
+// MachineSecretEnv overrides the machine identity that seeds the keyring-free fallback.
+// It exists so containers and the test suite can pin an identifier instead of reading
+// whatever /etc/machine-id (or the OS equivalent) reports.
+const MachineSecretEnv = "WABA_KEYRING_MACHINE_ID"
+
+// machineCredentialsFile is where the machine-keyed fallback lives. It is deliberately a
+// separate file from credentials.enc: the two are keyed differently, so sharing a file would
+// make a later password opt-in read as "wrong password or tampered file" against the
+// machine-keyed payload.
+const machineCredentialsFile = "credentials.machine.enc"
 
 // keyringPassword resolves the encrypted-file password from, in order: the env var, a file
 // named by the file env var, or the default file in the config dir. `fromFile` reports
@@ -116,39 +128,69 @@ type Store interface {
 var ErrNotFound = errors.New("no stored credential")
 
 // NewStore selects the credential store. Precedence: an explicit WABA_KEYRING_BACKEND;
-// then a keyring-password *file*, which forces the file store; then the OS keyring, with the
-// encrypted file as a fallback only when the keyring is unavailable.
+// then a keyring-password *file*, which forces the file store; then the OS keyring, with
+// the encrypted file as a fallback when the keyring is unavailable. The file fallback is
+// keyed by a user password when one is configured, and by a per-machine secret otherwise —
+// so `waba init` works on a headless box with zero setup, matching the rest of the fleet.
 func NewStore() Store {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(KeyringBackendEnv))) {
 	case "file":
-		if fs, err := NewFileStore(""); err == nil {
-			return fs
-		}
-		// Falling through to the OS keyring here would silently ignore an explicit request;
-		// the file store only fails when the password is unset, which the error names.
+		return preferredFileStore()
 	case "keyring":
 		return &keyringStore{}
 	}
 
 	pw, fromFile, _ := keyringPassword()
+	return selectStore(keyringUsable(), pw, fromFile)
+}
 
+// selectStore is the pure backend-selection core, kept separate so every branch is
+// testable without touching the real OS keyring.
+func selectStore(keyringOK bool, pw string, fromFile bool) Store {
 	// A password *file* is a persistent, shell-independent opt-in to the file store, so honour
 	// it even where the OS keyring is usable. This is the fix for the read/write split: a
 	// credential written to the file store on a box that also has a keyring must be read back
 	// from the file store, not from an empty keyring — and the choice cannot ride on a shell
 	// variable, because a non-interactive `ssh host 'waba …'` sources no rc to set one.
 	if fromFile {
-		if fs, err := NewFileStore(""); err == nil {
+		if fs, err := newPasswordFileStore(); err == nil {
 			return fs
 		}
 	}
 
 	// Env-var-only password: keep the narrower rule — fall back to the file only when the OS
 	// keyring is genuinely unavailable (headless Linux, no Secret Service).
-	if pw != "" && !keyringUsable() {
-		if fs, err := NewFileStore(""); err == nil {
+	if pw != "" {
+		if keyringOK {
+			return &keyringStore{}
+		}
+		if fs, err := newPasswordFileStore(); err == nil {
 			return fs
 		}
+		return &keyringStore{}
+	}
+
+	// No password configured: prefer the OS keyring, else the machine-keyed file. This is
+	// what makes a headless box work with no setup — the file needs no password because its
+	// key is the machine's own identifier.
+	if keyringOK {
+		return &keyringStore{}
+	}
+	if fs, err := newMachineFileStore(); err == nil {
+		return fs
+	}
+	return &keyringStore{}
+}
+
+// preferredFileStore is the WABA_KEYRING_BACKEND=file path: a real password when one is
+// configured, otherwise the machine-keyed store. It never silently becomes the keyring,
+// because an explicit "file" was asked for.
+func preferredFileStore() Store {
+	if fs, err := newPasswordFileStore(); err == nil {
+		return fs
+	}
+	if fs, err := newMachineFileStore(); err == nil {
+		return fs
 	}
 	return &keyringStore{}
 }
@@ -188,7 +230,8 @@ func (k *keyringStore) Set(account string, c Credential) error {
 		return err
 	}
 	if err := keyring.Set(KeyringService, keyFor(account), string(raw)); err != nil {
-		return fmt.Errorf("write keyring: %w (on headless Linux set %s to use the encrypted-file fallback)", err, KeyringPasswordEnv)
+		return fmt.Errorf("write keyring: %w (headless Linux has no Secret Service — the encrypted-file fallback engages automatically; set %s only if you want password encryption, or write the password to %s in the config dir)",
+			err, KeyringPasswordEnv, keyringPasswordFile)
 	}
 	return nil
 }
@@ -221,19 +264,20 @@ func decodeCredential(raw string) (Credential, error) {
 // ---------- encrypted file fallback ----------
 
 type fileStore struct {
-	path     string
-	password string
+	path    string
+	secret  string // key material: the user password, or a per-machine secret
+	machine bool   // keyed by a per-machine secret rather than a user-supplied password
 }
 
-// NewFileStore creates the encrypted-file store. An empty path uses credentials.enc in the
-// config directory.
+// NewFileStore creates the password-keyed encrypted-file store. An empty path uses
+// credentials.enc in the config directory.
 func NewFileStore(path string) (Store, error) {
 	pw, _, err := keyringPassword()
 	if err != nil {
 		return nil, err
 	}
 	if pw == "" {
-		return nil, fmt.Errorf("set %s, or write the password to %s in the config dir, to use the encrypted-file credential store",
+		return nil, fmt.Errorf("set %s, or write the password to %s in the config dir, to use the password-keyed credential store",
 			KeyringPasswordEnv, keyringPasswordFile)
 	}
 	if path == "" {
@@ -243,10 +287,101 @@ func NewFileStore(path string) (Store, error) {
 		}
 		path = filepath.Join(dir, "credentials.enc")
 	}
-	return &fileStore{path: path, password: pw}, nil
+	return &fileStore{path: path, secret: pw}, nil
 }
 
-func (f *fileStore) Backend() string { return "encrypted-file" }
+// newPasswordFileStore builds the password-keyed file store; it errors when no password is
+// configured, which the caller turns into a fall-through to the machine-keyed store.
+func newPasswordFileStore() (Store, error) {
+	return NewFileStore("")
+}
+
+// newMachineFileStore builds the keyring-free fallback for headless boxes. It needs no user
+// input: the key is derived from a per-machine secret, so `waba init` works on a fresh CI
+// runner or container exactly as it does on a desktop. The security tier matches the rest of
+// the fleet — obfuscation at rest, not a real secret service; setting WABA_KEYRING_PASSWORD
+// (or a keyring-password file) upgrades to true password encryption.
+func newMachineFileStore() (Store, error) {
+	secret, err := machineSecret()
+	if err != nil {
+		return nil, err
+	}
+	dir, err := configDir()
+	if err != nil {
+		return nil, err
+	}
+	return &fileStore{path: filepath.Join(dir, machineCredentialsFile), secret: secret, machine: true}, nil
+}
+
+// machineSecret is the key material for the machine-keyed store: a stable per-machine
+// identifier plus the user, so two users on a shared box do not share keys.
+func machineSecret() (string, error) {
+	id, err := machineID()
+	if err != nil {
+		return "", err
+	}
+	user := os.Getenv("USER")
+	if user == "" {
+		user = os.Getenv("USERNAME")
+	}
+	if user == "" {
+		user = os.Getenv("LOGNAME")
+	}
+	if user == "" {
+		user = "unknown"
+	}
+	return "waba-cli-machine-v1:" + id + ":" + user, nil
+}
+
+// machineID returns a stable identifier for this machine. Sources, in order: an env
+// override (containers and tests that want a pinned id), the Linux machine-id files, the
+// macOS IOPlatformUUID, and the Windows machine GUID. The last resort is the hostname: it
+// is guessable, but this tier is obfuscation-at-rest, and a container without /etc/
+// machine-id should still get a working fallback rather than a hard failure.
+func machineID() (string, error) {
+	if envID := os.Getenv(MachineSecretEnv); envID != "" {
+		return envID, nil
+	}
+	for _, p := range []string{"/etc/machine-id", "/var/lib/dbus/machine-id"} {
+		if data, err := os.ReadFile(p); err == nil { // #nosec G304 -- fixed system paths
+			if id := strings.TrimSpace(string(data)); id != "" {
+				return id, nil
+			}
+		}
+	}
+	if runtime.GOOS == "darwin" {
+		out, err := exec.Command("ioreg", "-rd1", "-c", "IOPlatformExpertDevice").Output()
+		if err == nil {
+			for _, line := range strings.Split(string(out), "\n") {
+				if strings.Contains(line, "IOPlatformUUID") {
+					if parts := strings.Split(line, `"`); len(parts) >= 4 && parts[3] != "" {
+						return parts[3], nil
+					}
+				}
+			}
+		}
+	}
+	if runtime.GOOS == "windows" {
+		out, err := exec.Command("powershell", "-Command",
+			"(Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography' -Name 'MachineGuid').MachineGuid").Output()
+		if err == nil {
+			if id := strings.TrimSpace(string(out)); id != "" {
+				return id, nil
+			}
+		}
+	}
+	if host, err := os.Hostname(); err == nil && host != "" {
+		return host, nil
+	}
+	return "", fmt.Errorf("could not determine a machine identifier — set %s to a stable value for this box", MachineSecretEnv)
+}
+
+func (f *fileStore) Backend() string {
+	if f.machine {
+		return "encrypted-file (machine key)"
+	}
+	return "encrypted-file"
+}
 
 func (f *fileStore) Get(account string) (Credential, error) {
 	all, err := f.load()
@@ -325,9 +460,15 @@ func (f *fileStore) load() (map[string]Credential, error) {
 	}
 	plain, err := gcm.Open(nil, nonce, data, nil)
 	if err != nil {
-		// GCM authentication failing means the wrong password or a tampered file; both are
-		// worth saying out loud rather than surfacing as a parse error.
-		return nil, fmt.Errorf("decrypt %s: wrong %s, or the file was modified", f.path, KeyringPasswordEnv)
+		// GCM authentication failing means the wrong key or a tampered file; both are worth
+		// saying out loud rather than surfacing as a parse error. Name the actual secret the
+		// file is keyed with, so a password-keyed file opened as machine-keyed (or vice
+		// versa) says which one to check.
+		secretName := KeyringPasswordEnv
+		if f.machine {
+			secretName = "the machine key"
+		}
+		return nil, fmt.Errorf("decrypt %s: wrong %s, or the file was modified", f.path, secretName)
 	}
 
 	out := map[string]Credential{}
@@ -395,7 +536,7 @@ func (f *fileStore) save(all map[string]Credential) error {
 }
 
 func (f *fileStore) cipher(salt []byte) (cipher.AEAD, error) {
-	key, err := pbkdf2.Key(sha256.New, f.password, salt, pbkdf2Iterations, 32)
+	key, err := pbkdf2.Key(sha256.New, f.secret, salt, pbkdf2Iterations, 32)
 	if err != nil {
 		return nil, fmt.Errorf("derive key: %w", err)
 	}
