@@ -16,10 +16,12 @@ waba auth logout
 ```
 
 Tokens are stored in the OS keyring (macOS Keychain, Linux Secret Service, Windows
-Credential Manager). Headless Linux boxes without a Secret Service use the AES-256-GCM
-encrypted-file fallback: set `WABA_KEYRING_PASSWORD` (or write it to
-`<config-dir>/keyring-password`, chmod 600, which also makes the choice persistent for
-cron/ssh sessions). `WABA_KEYRING_BACKEND=file|keyring` forces a backend.
+Credential Manager). Headless Linux boxes without a Secret Service fall back automatically
+to an AES-256-GCM encrypted file keyed by a per-machine secret — `waba init` works on a
+fresh CI runner or container with zero setup. Setting `WABA_KEYRING_PASSWORD` (or writing
+it to `<config-dir>/keyring-password`, chmod 600) upgrades that fallback to real password
+encryption; a password file also makes the choice persistent for cron/ssh sessions.
+`WABA_KEYRING_BACKEND=file|keyring` forces a backend.
 
 ## Accounts (profiles)
 

@@ -20,9 +20,9 @@ Expect an acknowledgement within 72 hours and an assessment within a week.
 
 - **Credentials are never written to the config file.** They go to the OS keyring (macOS
   Keychain, Linux Secret Service, Windows Credential Manager). The config holds only
-  non-secret settings: site URLs, your account email, the chosen auth method, the OAuth
-  client id and cloud id.
-- **The encrypted-file fallback** (`ATLASSIAN_KEYRING_PASSWORD`, for headless hosts) uses
+  non-secret settings: the WABA id, the default phone number id, the app id and the
+  Graph API base URL and version.
+- **The encrypted-file fallback** (`WABA_KEYRING_PASSWORD`, for headless hosts) uses
   AES-256-GCM with a PBKDF2-HMAC-SHA256 key at 600,000 iterations and a fresh random salt
   per file. The file is written `0600` via an atomic rename.
 - **Credentials are redacted by default** in `--dry-run` output, `auth status` and
@@ -33,9 +33,11 @@ Expect an acknowledgement within 72 hours and an assessment within a week.
   hit the canonical-mode buffer limit and hang.
 - **Output is sanitized.** CSV cells are neutralized against spreadsheet formula injection
   (CWE-1236) and terminal escape sequences are stripped from API-supplied text, because
-  issue summaries and page titles are attacker-controllable.
-- **Writes are not blindly retried.** Only idempotent methods are re-sent, so a timeout can
-  never create a duplicate issue or comment.
+  inbound message bodies, contact profile names and template contents are
+  attacker-controllable.
+- **Send operations are never retried automatically.** A timeout after `POST /messages`
+  does not prove Meta dropped the request, so a blind retry could deliver the same message
+  twice. Only idempotent reads are re-sent (with jitter and `Retry-After` respected).
 
 ## Agent safety
 

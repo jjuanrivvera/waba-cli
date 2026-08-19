@@ -25,7 +25,8 @@ touching the command surface or a documented behaviour — not just `make check`
   dry-run curl, `APIError` with Graph-code-keyed hints, cursor pagination, flexible JSON
   types, and one thin service file per resource group.
 - `internal/auth/` — a single Bearer authenticator; OS keyring with an AES-256-GCM
-  encrypted-file fallback (`WABA_KEYRING_PASSWORD`).
+  encrypted-file fallback (machine-keyed by default on headless boxes; a
+  `WABA_KEYRING_PASSWORD` / `keyring-password` file upgrades it to password encryption).
 - `internal/{config,output,version,update}` — `--account` profiles (WABA id + phone number
   id + app id + graph version) with manual precedence (no Viper), the table/json/yaml/csv/id
   renderer, build metadata, self-update.
