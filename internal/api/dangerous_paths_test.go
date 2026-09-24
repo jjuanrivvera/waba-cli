@@ -31,22 +31,24 @@ func TestClient_NeverRetriesPOST_OnTransportFailure(t *testing.T) {
 		"a POST that failed in transit may already have been delivered; retrying double-sends it")
 }
 
-// The same guarantee for an upload: media posts carry the same one-way risk.
+// The same guarantee when the request times out rather than being dropped. The deadline is a
+// PER-ATTEMPT one on the transport, not a cancellation of the caller's context: a cancelled
+// caller would stop a retry by itself, and the test would pass even if the client had started
+// retrying sends. With the caller's context alive, the attempt count is the real evidence.
 func TestClient_NeverRetriesPOST_OnTimeout(t *testing.T) {
 	var calls atomic.Int32
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		select {
 		case <-r.Context().Done():
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(400 * time.Millisecond):
 		}
-	})
+	}, WithHTTPClient(&http.Client{Timeout: 100 * time.Millisecond}))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
-	defer cancel()
-	err := c.PostJSON(ctx, "123/messages", map[string]string{"text": "hi"}, nil)
+	err := c.PostJSON(context.Background(), "123/messages", map[string]string{"text": "hi"}, nil)
 	require.Error(t, err)
-	assert.Equal(t, int32(1), calls.Load(), "a timed-out POST must not be replayed")
+	assert.Equal(t, int32(1), calls.Load(),
+		"a timed-out POST must not be replayed — the message may already be on its way")
 }
 
 // A 429 answered with an immediate retry, and that retry answered with another, is how a
