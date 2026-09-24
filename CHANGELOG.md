@@ -4,6 +4,22 @@ All notable changes to waba-cli are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- **Error code 10 no longer claims a missing permission it cannot know about (issue #11).**
+  Graph reuses code 10 for conditions unrelated to permissions — `This operation can not be
+  performed on SMB business type` arrives with both WhatsApp scopes granted — and the blanket
+  hint sent the reader to audit Business Manager, contradicting Meta's own message printed
+  directly above it. A hint that argues with the error above it costs every other hint its
+  credibility, so code 10 now hints only when the failure actually reads like a refusal
+  (checked across `message`, `error_data.details` and `error_user_msg`). The codes Graph
+  reserves exclusively for permissions are unchanged.
+- **Meta's own explanation now reaches the reader.** `error_user_msg` / `error_user_title` were
+  parsed and then never printed, so the field that usually names the real cause was invisible
+  and a generic hint took its place. It is rendered on a `meta:` line, and skipped when it only
+  repeats what was already shown.
+
 ## [0.1.1] - 2026-08-17
 
 ### Fixed

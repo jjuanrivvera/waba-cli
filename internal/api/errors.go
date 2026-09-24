@@ -45,6 +45,13 @@ func (e *APIError) Error() string {
 	if msg != "" {
 		fmt.Fprintf(&b, ": %s", msg)
 	}
+	// error_user_msg is Meta's own explanation for a human, and it is often the only field
+	// that names the real cause. Printing it means the reader sees Meta's account of the
+	// failure before any hint of ours — and when the two disagree, theirs is the one about
+	// this request (issue #11).
+	if um := e.userFacing(); um != "" && !strings.Contains(msg, um) {
+		fmt.Fprintf(&b, "\n  meta: %s", um)
+	}
 	if hint := e.Hint(); hint != "" {
 		fmt.Fprintf(&b, "\n  hint: %s", hint)
 	}
@@ -62,8 +69,19 @@ func (e *APIError) Hint() string {
 		return "access token invalid or expired — run `waba auth login` with a fresh System User token"
 	case 0:
 		// No Graph code parsed; fall through to the HTTP status below.
-	case 10, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 294, 299:
-		return "permission missing — the token needs whatsapp_business_messaging and whatsapp_business_management, granted to this WABA in Business Manager"
+	case 10:
+		// Graph reuses code 10 for conditions that have nothing to do with permissions —
+		// "This operation can not be performed on SMB business type" is one, and it arrives
+		// with the token's scopes fully granted (issue #11). A hint that contradicts the
+		// message printed directly above it is worse than no hint: it sends the reader to
+		// audit permissions that were already correct, and it costs the other hints their
+		// credibility. So hint only when the failure actually reads like a permission one.
+		if looksLikePermissionDenied(e.Message, e.Details, e.UserMsg) {
+			return permissionHint
+		}
+		return ""
+	case 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 294, 299:
+		return permissionHint
 	case 3:
 		return "app capability missing — check the app has the WhatsApp product added and API access enabled"
 	case 4, 17, 32, 613:
@@ -118,6 +136,48 @@ func (e *APIError) Hint() string {
 		return "Meta server error, usually transient — retry, then check https://metastatus.com/whatsapp-business-api"
 	}
 	return ""
+}
+
+// userFacing renders error_user_title/error_user_msg as one line, empty when Meta sent neither.
+func (e *APIError) userFacing() string {
+	switch {
+	case e.UserMsg == "":
+		return ""
+	case e.UserTitle == "" || strings.Contains(e.UserMsg, e.UserTitle):
+		return e.UserMsg
+	default:
+		return e.UserTitle + ": " + e.UserMsg
+	}
+}
+
+// permissionHint is the action for the code range Graph reserves for missing permissions.
+const permissionHint = "permission missing — the token needs whatsapp_business_messaging and whatsapp_business_management, granted to this WABA in Business Manager"
+
+// permissionPhrases are how Graph words an actual permission refusal. They are matched against
+// the message Meta sent, not against the code, because the code alone does not distinguish a
+// refusal from the other things it is used for.
+var permissionPhrases = []string{
+	"permission",
+	"not authorized",
+	"unauthorized",
+	"access denied",
+	"does not have access",
+	"requires the extended permission",
+}
+
+// looksLikePermissionDenied reports whether any message Meta sent reads like a permission
+// refusal. It looks at every field that can carry the explanation, because which one is filled
+// varies by endpoint: the generic message, error_data.details, and the user-facing text.
+func looksLikePermissionDenied(messages ...string) bool {
+	for _, m := range messages {
+		lower := strings.ToLower(m)
+		for _, phrase := range permissionPhrases {
+			if strings.Contains(lower, phrase) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // graphEnvelope mirrors Meta's error wrapper.
