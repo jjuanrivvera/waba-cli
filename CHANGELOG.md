@@ -13,8 +13,10 @@ All notable changes to waba-cli are documented here. The format follows
   hint sent the reader to audit Business Manager, contradicting Meta's own message printed
   directly above it. A hint that argues with the error above it costs every other hint its
   credibility, so code 10 now hints only when the failure actually reads like a refusal
-  (checked across `message`, `error_data.details` and `error_user_msg`). The codes Graph
-  reserves exclusively for permissions are unchanged.
+  (checked across `message`, `error_data.details` and `error_user_msg`). Even then it names the
+  WABA scopes only when Meta's own message points at them — a refusal about, say,
+  `pages_read_engagement` gets generic advice instead of the same wrong turn one level in. The
+  codes Graph reserves exclusively for permissions are unchanged.
 - **Meta's own explanation now reaches the reader.** `error_user_msg` / `error_user_title` were
   parsed and then never printed, so the field that usually names the real cause was invisible
   and a generic hint took its place. It is rendered on a `meta:` line, and skipped when it only

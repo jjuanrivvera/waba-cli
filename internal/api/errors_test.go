@@ -106,3 +106,64 @@ func TestError_SkipsRedundantUserMessage(t *testing.T) {
 		t.Errorf("the same sentence should appear once:\n%s", e.Error())
 	}
 }
+
+// A refusal about a permission that isn't a WhatsApp scope must not prescribe WhatsApp scopes:
+// that is the same wrong turn as the SMB case, one level in.
+func TestHint_Code10_ForeignScopeGetsGenericAdvice(t *testing.T) {
+	e := &APIError{Code: 10, Message: "(#10) requires pages_read_engagement permission"}
+	hint := e.Hint()
+	if hint == "" {
+		t.Fatal("a genuine refusal should still be hinted")
+	}
+	if strings.Contains(hint, "whatsapp_business_") {
+		t.Errorf("must not prescribe WABA scopes for someone else's permission: %q", hint)
+	}
+}
+
+func TestHint_Code10_WhatsAppScopeNamed(t *testing.T) {
+	e := &APIError{Code: 10, Message: "(#10) The token requires whatsapp_business_management permission"}
+	if !strings.Contains(e.Hint(), "whatsapp_business_management") {
+		t.Errorf("when Meta names the WABA scope, say so: %q", e.Hint())
+	}
+}
+
+// Either user-facing field can arrive alone, and either can repeat what was already printed.
+func TestError_MetaLine(t *testing.T) {
+	cases := []struct {
+		name             string
+		msg, title, umsg string
+		want, wantAbsent string
+	}{{
+		name:  "title without a message still reaches the reader",
+		msg:   "(#100) Invalid parameter",
+		title: "Number already registered",
+		want:  "meta: Number already registered",
+	}, {
+		name:  "both halves already shown, so no meta line",
+		msg:   "Cannot send. Rate limit hit",
+		title: "Cannot send",
+		umsg:  "Rate limit hit",
+		want:  "",
+		// The joined form would have looked new while both halves were already there.
+		wantAbsent: "meta:",
+	}, {
+		name:  "only the new half is added",
+		msg:   "Cannot send",
+		title: "Cannot send",
+		umsg:  "Wait 60 seconds and retry",
+		want:  "meta: Wait 60 seconds and retry",
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := &APIError{StatusCode: 400, Message: tc.msg, UserTitle: tc.title, UserMsg: tc.umsg}
+			got := e.Error()
+			if tc.want != "" && !strings.Contains(got, tc.want) {
+				t.Errorf("want %q in:\n%s", tc.want, got)
+			}
+			if tc.wantAbsent != "" && strings.Contains(got, tc.wantAbsent) {
+				t.Errorf("did not want %q in:\n%s", tc.wantAbsent, got)
+			}
+		})
+	}
+}

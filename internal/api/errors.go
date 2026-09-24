@@ -45,12 +45,12 @@ func (e *APIError) Error() string {
 	if msg != "" {
 		fmt.Fprintf(&b, ": %s", msg)
 	}
-	// error_user_msg is Meta's own explanation for a human, and it is often the only field
-	// that names the real cause. Printing it means the reader sees Meta's account of the
-	// failure before any hint of ours — and when the two disagree, theirs is the one about
-	// this request (issue #11).
-	if um := e.userFacing(); um != "" && !strings.Contains(msg, um) {
-		fmt.Fprintf(&b, "\n  meta: %s", um)
+	// error_user_msg / error_user_title are Meta's own explanation for a human, and often the
+	// only fields that name the real cause. Printing them means the reader sees Meta's account
+	// of the failure before any hint of ours — and when the two disagree, theirs is the one
+	// about this request (issue #11).
+	if meta := e.metaLine(msg); meta != "" {
+		fmt.Fprintf(&b, "\n  meta: %s", meta)
 	}
 	if hint := e.Hint(); hint != "" {
 		fmt.Fprintf(&b, "\n  hint: %s", hint)
@@ -76,10 +76,17 @@ func (e *APIError) Hint() string {
 		// message printed directly above it is worse than no hint: it sends the reader to
 		// audit permissions that were already correct, and it costs the other hints their
 		// credibility. So hint only when the failure actually reads like a permission one.
-		if looksLikePermissionDenied(e.Message, e.Details, e.UserMsg) {
+		if !looksLikePermissionDenied(e.Message, e.Details, e.UserMsg) {
+			return ""
+		}
+		// Even a genuine refusal may be about a permission that has nothing to do with
+		// WhatsApp ("requires pages_read_engagement"). Naming the two WABA scopes there
+		// would be the same wrong turn this case exists to stop, so say that only when the
+		// error itself points at them.
+		if mentionsWhatsAppScope(e.Message, e.Details, e.UserMsg) {
 			return permissionHint
 		}
-		return ""
+		return "permission refused — grant the token the permission named above (Business Manager > the app's System User)"
 	case 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 294, 299:
 		return permissionHint
 	case 3:
@@ -138,16 +145,20 @@ func (e *APIError) Hint() string {
 	return ""
 }
 
-// userFacing renders error_user_title/error_user_msg as one line, empty when Meta sent neither.
-func (e *APIError) userFacing() string {
-	switch {
-	case e.UserMsg == "":
-		return ""
-	case e.UserTitle == "" || strings.Contains(e.UserMsg, e.UserTitle):
-		return e.UserMsg
-	default:
-		return e.UserTitle + ": " + e.UserMsg
+// metaLine renders whichever of error_user_title / error_user_msg is not already in shown.
+// Either can arrive alone, and either can repeat the developer message the caller has just
+// printed, so they are compared one at a time rather than as the joined pair.
+func (e *APIError) metaLine(shown string) string {
+	lower := strings.ToLower(shown)
+	var parts []string
+	for _, field := range []string{e.UserTitle, e.UserMsg} {
+		field = strings.TrimSpace(field)
+		if field == "" || strings.Contains(lower, strings.ToLower(field)) {
+			continue
+		}
+		parts = append(parts, field)
 	}
+	return strings.Join(parts, ": ")
 }
 
 // permissionHint is the action for the code range Graph reserves for missing permissions.
@@ -163,6 +174,19 @@ var permissionPhrases = []string{
 	"access denied",
 	"does not have access",
 	"requires the extended permission",
+}
+
+// mentionsWhatsAppScope reports whether Meta named one of the WABA scopes the CLI can advise on.
+func mentionsWhatsAppScope(messages ...string) bool {
+	for _, m := range messages {
+		lower := strings.ToLower(m)
+		if strings.Contains(lower, "whatsapp_business_messaging") ||
+			strings.Contains(lower, "whatsapp_business_management") ||
+			strings.Contains(lower, "whatsapp business") {
+			return true
+		}
+	}
+	return false
 }
 
 // looksLikePermissionDenied reports whether any message Meta sent reads like a permission
