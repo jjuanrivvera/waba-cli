@@ -6,6 +6,12 @@ on:
   push:
     branches: [main, develop]
   pull_request:
+  # A manual lever. On 2026-09-24 this repo stopped producing runs from push and
+  # pull_request events entirely — the quirk recorded in the fleet AGENTS.md, seen before in
+  # wootctl and remoteok — and without workflow_dispatch there was no way to verify ANY pull
+  # request until the events came back. Editing this file through a PR is what revived the
+  # other two; this keeps the fallback for next time.
+  workflow_dispatch:
 
 permissions:
   contents: read
