@@ -75,6 +75,12 @@ func (m *mockGraph) onStatus(method, path string, status int, response string) {
 }
 
 // last returns the most recent captured request.
+// onFunc scripts a raw handler, for the cases a canned body cannot express: a dropped
+// connection, a header-dependent answer, a delay.
+func (m *mockGraph) onFunc(method, path string, h func(http.ResponseWriter, *http.Request)) {
+	m.handlers[method+" "+path] = h
+}
+
 func (m *mockGraph) last() capturedRequest {
 	require.NotEmpty(m.t, m.requests, "the mock received no requests")
 	return m.requests[len(m.requests)-1]
