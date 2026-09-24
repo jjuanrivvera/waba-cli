@@ -167,3 +167,40 @@ func TestError_MetaLine(t *testing.T) {
 		})
 	}
 }
+
+// error_user_title can be the only field that says "permission", and Error() prints it — so
+// the hint has to read it too, or the reader sees the refusal with no guidance beside it.
+func TestHint_Code10_PermissionWordingInUserTitle(t *testing.T) {
+	e := &APIError{Code: 10, Message: "(#10) Operation failed", UserTitle: "Permission denied"}
+	if e.Hint() == "" {
+		t.Error("a refusal named only in error_user_title should still be hinted")
+	}
+}
+
+// Meta's prose names the account, not a scope: "WhatsApp Business account" appears in
+// refusals about entirely different permissions, and must not summon the WABA scopes.
+func TestHint_Code10_AccountNameIsNotAScope(t *testing.T) {
+	e := &APIError{
+		Code:    10,
+		Message: "(#10) Missing pages_read_engagement permission to access this WhatsApp Business account",
+	}
+	hint := e.Hint()
+	if strings.Contains(hint, "whatsapp_business_messaging") {
+		t.Errorf("an account name is not a scope name: %q", hint)
+	}
+	if hint == "" {
+		t.Error("it is still a refusal, so it should still be hinted")
+	}
+}
+
+// When Meta names no permission at all, the hint must not promise one.
+func TestHint_Code10_NoPermissionNamed(t *testing.T) {
+	e := &APIError{Code: 10, Message: "Unauthorized use of this endpoint"}
+	hint := e.Hint()
+	if strings.Contains(hint, "named above") {
+		t.Errorf("nothing was named above: %q", hint)
+	}
+	if hint == "" {
+		t.Error("a refusal should still be hinted")
+	}
+}

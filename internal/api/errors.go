@@ -76,17 +76,17 @@ func (e *APIError) Hint() string {
 		// message printed directly above it is worse than no hint: it sends the reader to
 		// audit permissions that were already correct, and it costs the other hints their
 		// credibility. So hint only when the failure actually reads like a permission one.
-		if !looksLikePermissionDenied(e.Message, e.Details, e.UserMsg) {
+		if !looksLikePermissionDenied(e.Message, e.Details, e.UserTitle, e.UserMsg) {
 			return ""
 		}
 		// Even a genuine refusal may be about a permission that has nothing to do with
 		// WhatsApp ("requires pages_read_engagement"). Naming the two WABA scopes there
 		// would be the same wrong turn this case exists to stop, so say that only when the
 		// error itself points at them.
-		if mentionsWhatsAppScope(e.Message, e.Details, e.UserMsg) {
+		if mentionsWhatsAppScope(e.Message, e.Details, e.UserTitle, e.UserMsg) {
 			return permissionHint
 		}
-		return "permission refused — grant the token the permission named above (Business Manager > the app's System User)"
+		return "permission refused — the token cannot perform this call; check its permissions and this WABA's access in Business Manager (the message above names the permission when Meta sends one)"
 	case 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 294, 299:
 		return permissionHint
 	case 3:
@@ -180,9 +180,12 @@ var permissionPhrases = []string{
 func mentionsWhatsAppScope(messages ...string) bool {
 	for _, m := range messages {
 		lower := strings.ToLower(m)
+		// Only the scope identifiers themselves. The prose "WhatsApp Business account" appears
+		// in refusals about entirely different permissions ("Missing pages_read_engagement
+		// permission to access this WhatsApp Business account"), and matching it would
+		// prescribe the WABA scopes for someone else's — the very mistake this guards.
 		if strings.Contains(lower, "whatsapp_business_messaging") ||
-			strings.Contains(lower, "whatsapp_business_management") ||
-			strings.Contains(lower, "whatsapp business") {
+			strings.Contains(lower, "whatsapp_business_management") {
 			return true
 		}
 	}
