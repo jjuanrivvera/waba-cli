@@ -17,6 +17,8 @@
 
 [Documentation](https://jjuanrivvera.github.io/waba-cli/) · [Command reference](https://jjuanrivvera.github.io/waba-cli/commands/waba/)
 
+![waba in action](assets/demo.gif)
+
 </div>
 
 `waba` is a complete command-line client for Meta's WhatsApp Cloud API: every message type,
