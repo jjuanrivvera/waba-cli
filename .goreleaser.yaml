@@ -81,10 +81,10 @@ homebrew_casks:
     license: MIT
     hooks:
       post:
-        install: |
+        install_steps: |
           # An unsigned binary is SIGKILLed by Gatekeeper on macOS arm64 unless the
           # quarantine attribute is stripped.
-          system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/waba"]
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/waba"]
 
 scoops:
   - name: waba-cli
