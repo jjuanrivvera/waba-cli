@@ -43,12 +43,71 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ripgrep shellcheck
-      - run: make build
+      - id: build
+        run: make build
       - name: surface matches the manifest
+        id: spec_check
         run: ./scripts/spec-check.sh
       - name: manifest still wraps the whole enumerated API
+        id: spec_completeness
+        if: ${{ !cancelled() }}
         run: ./scripts/spec-completeness.sh api-manifest.json 90
       - name: definition of done
         run: ./scripts/dod-check.sh waba
       - name: shellcheck
         run: shellcheck install.sh scripts/*.sh
+      - name: API gate summary
+        if: ${{ always() }}
+        shell: bash
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          CHECK_OUTCOME: ${{ steps.spec_check.outcome }}
+          COMPLETENESS_OUTCOME: ${{ steps.spec_completeness.outcome }}
+          CHECKED_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          {
+            echo '## API gates'
+            echo '| Gate | Outcome |'
+            echo '| --- | --- |'
+            printf '| Build | %s |\n' "$BUILD_OUTCOME"
+            printf '| Surface consistency | %s |\n' "$CHECK_OUTCOME"
+            printf '| Completeness | %s |\n' "$COMPLETENESS_OUTCOME"
+            if [[ -f DECISIONS.md ]] && grep -Eiq 'coverage[ -]?waiver' DECISIONS.md; then
+              echo 'Coverage waiver: registered in DECISIONS.md.'
+            else
+              echo 'Coverage waiver: none registered.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if ! manifest=$(jq -er '
+            select((.api_method_total | type == "number" and floor == . and . > 0)
+              and (.api_method_source | type == "string" and length > 0)
+              and (.resources | type == "array")
+              and all(.resources[]; (.verbs | type == "array"))
+              and ((.methods // []) | type == "array"))
+            | [(((.resources // [] | map(.verbs // [] | length) | add) // 0)
+                + (.methods // [] | length)), .api_method_total, .api_method_source]
+            | @tsv' api-manifest.json); then
+            echo 'API data unavailable or invalid: manifest missing or invalid.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if ! enumeration=$(jq -er '
+            select((.operations | type == "array")
+              and all(.operations[]; (.wrapped | type == "boolean")))
+            | [.operations | length, ([.[] | select(.wrapped == true)] | length)] | @tsv
+            ' specs/enumeration.json); then
+            echo 'API data unavailable or invalid: enumeration missing or invalid.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          IFS=$'\t' read -r covered total source <<< "$manifest"
+          IFS=$'\t' read -r enum_total enum_covered <<< "$enumeration"
+          if [[ "$total" != "$enum_total" || "$covered" != "$enum_covered" ]]; then
+            echo 'API data unavailable or invalid: manifest and enumeration counts differ.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          printf '\nCompleteness: **%s/%s (%s%%)**; minimum: **90%%**.\n\n' \
+            "$covered" "$total" "$((covered * 100 / total))" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Source: %s\n\n[Enumeration at checked SHA](https://github.com/%s/blob/%s/specs/enumeration.json)\n' \
+            "$source" "$REPOSITORY" "$CHECKED_SHA" >> "$GITHUB_STEP_SUMMARY"

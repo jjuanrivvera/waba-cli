@@ -3,6 +3,11 @@
 One line per decision: question → decision → why. The build loop reads this back instead of
 re-deciding (cliwright GOAL.md §11).
 
+**CI evidence** → keep test coverage and security in the shared workflow and API gates in
+the local workflow; publish results in per-run job summaries → reviewers can inspect evidence
+for the checked SHA without static measured badges or external services. Coverage and
+govulncheck summaries require the pending shared workflow update.
+
 1. **Binary name** → `waba`, repo `waba-cli` → fleet naming rule: repo says what it's for,
    binary says what it does; "waba" (WhatsApp Business Account) is the domain noun, no PATH
    collision found.

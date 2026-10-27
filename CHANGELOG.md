@@ -6,6 +6,10 @@ All notable changes to waba-cli are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- CI reports API gate outcomes and completeness in each run's job summary; coverage and
+  govulncheck summaries depend on the shared workflow update.
+
 ### Fixed
 - **Error code 10 no longer claims a missing permission it cannot know about (issue #11).**
   Graph reuses code 10 for conditions unrelated to permissions — `This operation can not be

@@ -6,7 +6,6 @@
 
 [![CI](https://github.com/jjuanrivvera/waba-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/jjuanrivvera/waba-cli/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/jjuanrivvera/waba-cli)](https://github.com/jjuanrivvera/waba-cli/releases/latest)
-[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A580%25-brightgreen)](https://github.com/jjuanrivvera/waba-cli/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jjuanrivvera/waba-cli.svg)](https://pkg.go.dev/github.com/jjuanrivvera/waba-cli)
 [![Go version](https://img.shields.io/github/go-mod/go-version/jjuanrivvera/waba-cli)](go.mod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -150,6 +149,12 @@ The command surface is generated from an enumerated API spec
 ([`specs/enumeration.json`](specs/enumeration.json)); `make verify` fails if the built CLI
 diverges from it or covers less than 90% of the documented API. See
 [AGENTS.md](AGENTS.md) for the architecture tour.
+
+In [CI runs](https://github.com/jjuanrivvera/waba-cli/actions/workflows/ci.yml), open a run
+and its job summaries to inspect API completeness and, once supported by the shared workflow,
+test coverage and govulncheck results. Percentages belong to that run's SHA; the minimums are
+80% test coverage and 90% API completeness. Security results can change as the vulnerability
+database changes. Detailed results remain in the job logs.
 
 ## License
 
